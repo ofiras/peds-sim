@@ -15,40 +15,103 @@
   const r1 = v => Math.round(v * 10) / 10;
 
   /* ---------------- order catalog ---------------- */
-  /* f: form fields [key, kind, options|default]; kinds: num (with unit), sel (options), freq */
+  /* The cart, drawn like the PALS app's: the monitor on top and four drawers of real items (vials, ampoules, bags, kits),
+     plus hands-on actions at the patient. Forms: [key, kind, options|default]; kinds num, sel, freq. */
   const LABS = ['poc', 'vbg', 'abg', 'chem', 'bhb', 'cbc', 'coag', 'tns', 'bcx', 'ua', 'lipase', 'lft', 'ecg', 'dmw'];
-  const CATALOG = {
-    care: [
-      ['historyQ'], ['examQ'], ['weigh'], ['monitor'], ['iv'], ['io_access'], ['npo'], ['headUp'], ['neuro', 'standing'], ['io', 'standing'],
-      ['o2', { f: [['mode', 'sel', ['nc', 'mask', 'nrb', 'hfnc']]] }], ['foley'], ['ngt'], ['aline'], ['cvc'], ['lp'], ['intub'], ['att'], ['endo'], ['surg'], ['picu'], ['ward']
+  const FORMS = {
+    o2: [['mode', 'sel', ['nc', 'mask', 'nrb', 'hfnc']]],
+    bolus: [['fluid', 'sel', ['NS', 'LR']], ['mlkg', 'num', 10], ['over', 'num', 60]],
+    main: [['base', 'sel', ['NS', 'HALF', 'LR']], ['dex', 'sel', [0, 5, 10, 12.5]], ['kcl', 'sel', [0, 20, 40, 60]], ['rate', 'num', '']],
+    dexBolus: [['mlkg', 'num', 2]], prbc: [['mlkg', 'num', 10]], ffp: [['mlkg', 'num', 10]], plt: [['mlkg', 'num', 10]], albumin: [['mlkg', 'num', 10]],
+    insDrip: [['dose', 'num', '']], scRapid: [['dose', 'num', 0.1]], scBasal: [['dose', 'num', 0.2]],
+    mannitol: [['gkg', 'num', 0.5]], hts: [['mlkg', 'num', 5]], bicarb: [['meqkg', 'num', 1]], kpo: [['meqkg', 'num', 0.5]], kphos: [['mmolkg', 'num', 0.25]]
+  };
+  LABS.forEach(k => { FORMS[k] = [['freq', 'freq']]; });
+  /* at the patient: the three most used are big, like the PALS hands-on buttons */
+  const BED = { big: ['examQ', 'historyQ', 'att'], sm: ['weigh', 'npo', 'headUp', 'neuro', 'io', 'po', 'endo', 'surg', 'picu', 'ward'] };
+  const BED_ICON = { examQ: 'auscult', historyQ: 'history', att: 'ems', weigh: 'glucose', npo: 'position', headUp: 'position', neuro: 'resp', io: 'fluid', po: 'albuterol', endo: 'ems', surg: 'ems', picu: 'ems', ward: 'ems' };
+  /* drawer contents, as stocked: kind = the drawing; o = the order it opens */
+  const ITEMS = {
+    mon: [['monitor', 'leads'], ['ecg', 'ecg12'], ['aline', 'rhythm']],
+    drug: [
+      { o: 'insulinVial', kind: 'vial', cap: '#f2c14e', name: 'ACTRAPID', conc: 'regular insulin', pack: '100 units/mL' },
+      { o: 'scRapid', kind: 'syr', cap: '#ff8a2a', name: 'NOVORAPID', conc: 'rapid insulin pen', pack: '100 units/mL' },
+      { o: 'scBasal', kind: 'syr', cap: '#a974ff', name: 'LANTUS', conc: 'basal insulin pen', pack: '100 units/mL' },
+      { o: 'mannitol', kind: 'bag', cap: '#e9eef0', name: 'MANNITOL 20%', conc: '0.2 g/mL', pack: '250 mL' },
+      { o: 'hts', kind: 'bag', cap: '#ff5d73', name: 'NaCl 3%', conc: 'hypertonic', pack: '250 mL' },
+      { o: 'bicarb', kind: 'syr', cap: '#9fd8ff', name: 'SODIUM BICARBONATE 8.4%', conc: '1 mEq/mL', pack: '50 mEq / 50 mL' },
+      { o: 'kclConc', kind: 'vial', cap: '#d23a4a', name: 'POTASSIUM CHLORIDE 14.9%', conc: '2 mEq/mL · CONCENTRATE', pack: 'add to the IV bag' },
+      { o: 'kpo', kind: 'vial', cap: '#ffd23f', name: 'SOPA-K', conc: 'oral potassium', pack: '1.34 mEq/mL' },
+      { o: 'kphos', kind: 'vial', cap: '#d23a4a', name: 'POTASSIUM PHOSPHATE', conc: '3 mmol/mL', pack: 'dilute in G5%' },
+      { o: 'cagluc', kind: 'amp', cap: '#e9eef0', name: 'CALCIUM GLUCONATE 10%', conc: '100 mg/mL', pack: '1 g / 10 mL' },
+      { o: 'ondan', kind: 'amp', cap: '#e9eef0', name: 'ONDANSETRON', conc: '2 mg/mL', pack: '4 mg / 2 mL' },
+      { o: 'paracet', kind: 'bag', cap: '#e9eef0', name: 'PARACETAMOL IV', conc: '10 mg/mL', pack: '100 mL' },
+      { o: 'morphine', kind: 'amp', cap: '#64a8ff', name: 'MORPHINE', conc: '10 mg/mL', pack: '10 mg / 1 mL' },
+      { o: 'midaz', kind: 'amp', cap: '#ff9a6b', name: 'MIDAZOLAM', conc: '5 mg/mL', pack: '5 mg / 1 mL' },
+      { o: 'ceftriax', kind: 'vial', cap: '#ff9a6b', name: 'CefTRIAXone', conc: 'powder', pack: '1 g for IV use' }
     ],
-    labs: LABS.map(k => [k, { lab: true }]).concat([['cxr'], ['usabd'], ['ct']]),
-    fluids: [
-      ['bolus', { f: [['fluid', 'sel', ['NS', 'LR']], ['mlkg', 'num', 10], ['over', 'num', 60]] }],
-      ['main', { f: [['base', 'sel', ['NS', 'HALF', 'LR']], ['dex', 'sel', [0, 5, 10, 12.5]], ['kcl', 'sel', [0, 20, 40, 60]], ['rate', 'num', '']] }],
-      ['dexBolus', { f: [['mlkg', 'num', 2]] }], ['prbc', { f: [['mlkg', 'num', 10]] }], ['ffp', { f: [['mlkg', 'num', 10]] }], ['plt', { f: [['mlkg', 'num', 10]] }], ['albumin', { f: [['mlkg', 'num', 10]] }]
+    line: [
+      { o: 'iv', kind: 'cann', name: 'IV CANNULA', conc: '20G / 22G', pack: '× 2' },
+      { o: 'io_access', kind: 'io', name: 'EZ-IO', conc: 'IO driver', pack: '15 / 25 mm needles' },
+      { o: 'bolusNS', kind: 'bag', cap: '#3d8bff', name: '0.9% SODIUM CHLORIDE', conc: 'isotonic', pack: '500 mL' },
+      { o: 'bolusLR', kind: 'bag', cap: '#35c46a', name: 'LACTATED RINGER’S', conc: 'isotonic', pack: '500 mL' },
+      { o: 'main', kind: 'pump', name: 'INFUSION PUMP', conc: 'continuous IV fluids', pack: 'saline · dextrose · KCl' },
+      { o: 'dexBolus', kind: 'bag', cap: '#ff8a2a', name: '10% DEXTROSE', conc: 'D10W · 100 mg/mL', pack: '250 mL' },
+      { o: 'prbc', kind: 'bag', cap: '#b3121f', name: 'PACKED RED CELLS', conc: 'crossmatched', pack: '≈ 280 mL unit' },
+      { o: 'ffp', kind: 'bag', cap: '#ffd23f', name: 'FRESH FROZEN PLASMA', conc: 'thawed', pack: '≈ 250 mL unit' },
+      { o: 'plt', kind: 'bag', cap: '#ff8a2a', name: 'PLATELETS', conc: 'apheresis', pack: '≈ 250 mL unit' },
+      { o: 'albumin', kind: 'bag', cap: '#e9eef0', name: 'ALBUMIN 5%', conc: 'colloid', pack: '250 mL' },
+      { o: 'cvc', kind: 'cath', name: 'CENTRAL LINE KIT', conc: 'triple lumen', pack: 'femoral / IJ' },
+      { o: 'poc', kind: 'gluco', name: 'GLUCOMETER', conc: 'point of care', pack: '' }
     ],
-    insulin: [['insDrip', { f: [['dose', 'num', '']] }], ['insBolus'], ['scRapid', { f: [['dose', 'num', 0.1]] }], ['scBasal', { f: [['dose', 'num', 0.2]] }], ['stopDrip']],
-    meds: [
-      ['mannitol', { f: [['gkg', 'num', 0.5]] }], ['hts', { f: [['mlkg', 'num', 5]] }], ['bicarb', { f: [['meqkg', 'num', 1]] }], ['kpo', { f: [['meqkg', 'num', 0.5]] }], ['kphos', { f: [['mmolkg', 'num', 0.25]] }],
-      ['cagluc'], ['ondan'], ['paracet'], ['morphine'], ['midaz'], ['ceftriax'], ['po']
+    air: [
+      { o: 'o2', kind: 'nrb', name: 'OXYGEN', conc: 'cannula · mask · high-flow', pack: '' },
+      { o: 'intub', kind: 'ett', name: 'ETT + LARYNGOSCOPE', conc: 'cuffed tubes', pack: '+ capnography' },
+      { o: 'ngt', kind: 'yank', name: 'NG TUBE', conc: '10–12 Fr', pack: 'with pH strips' },
+      { o: 'foley', kind: 'cath', name: 'URINARY CATHETER', conc: '8–10 Fr Foley', pack: 'with urine bag' },
+      { o: 'lp', kind: 'cath', name: 'LP NEEDLE', conc: '22G spinal', pack: 'with manometer' }
+    ],
+    lab: [
+      { o: 'vbg', kind: 'syr', cap: '#3d8bff', name: 'BLOOD GAS', conc: 'venous · lytes', pack: '' },
+      { o: 'abg', kind: 'syr', cap: '#ff5d73', name: 'ARTERIAL GAS', conc: 'needs an arterial stab or line', pack: '' },
+      { o: 'chem', kind: 'tubes', name: 'CHEMISTRY', conc: 'Na K Cl urea Cr Ca P Mg', pack: '' },
+      { o: 'bhb', kind: 'gluco', name: 'KETONE METER', conc: 'β-hydroxybutyrate', pack: '' },
+      { o: 'cbc', kind: 'tubes', name: 'CBC + CRP', conc: 'purple tube', pack: '' },
+      { o: 'coag', kind: 'tubes', name: 'COAGULATION', conc: 'blue tube', pack: '' },
+      { o: 'tns', kind: 'tubes', name: 'TYPE & SCREEN', conc: 'blood bank', pack: '' },
+      { o: 'bcx', kind: 'vial', cap: '#35c46a', name: 'BLOOD CULTURE', conc: 'pediatric bottle', pack: '' },
+      { o: 'ua', kind: 'cup', name: 'URINE', conc: 'dipstick + culture', pack: '' },
+      { o: 'lipase', kind: 'tubes', name: 'LIPASE / AMYLASE', conc: 'gold tube', pack: '' },
+      { o: 'lft', kind: 'tubes', name: 'LIVER TESTS', conc: 'gold tube', pack: '' },
+      { o: 'dmw', kind: 'tubes', name: 'DIABETES WORK-UP', conc: 'HbA1c · antibodies · TSH', pack: '' },
+      { o: 'cxr', kind: 'xray', name: 'CHEST X-RAY', conc: 'portable', pack: '' },
+      { o: 'usabd', kind: 'scan', name: 'ULTRASOUND', conc: 'abdomen · FAST', pack: '' },
+      { o: 'ct', kind: 'scan', name: 'CT', conc: 'head', pack: 'leaves the unit' }
     ]
   };
-  /* catalog labels beyond the DKA-specific ones in i18n */
+  /* drawings the PALS cart did not need */
+  const extraSVG = it => ({
+    cup: '<svg viewBox="0 0 60 80"><path d="M16 22h28l-3 46a5 5 0 0 1-5 4H24a5 5 0 0 1-5-4z" fill="rgba(255,230,140,.35)" stroke="#d6eef8"/><rect x="14" y="16" width="32" height="7" rx="2" fill="#ffd23f"/><path d="M19 48h22" stroke="#ffd23f" stroke-width="10" opacity=".45"/></svg>',
+    xray: '<svg viewBox="0 0 60 80"><rect x="10" y="12" width="40" height="56" rx="3" fill="#0b1820" stroke="#9aa7ad"/><path d="M30 20v40M22 26c-6 4-8 14-6 24M38 26c6 4 8 14 6 24M24 30h12M23 36h14M23 42h14M24 48h12" stroke="#d6eef8" stroke-width="1.4" fill="none" opacity=".8"/></svg>',
+    scan: '<svg viewBox="0 0 60 80"><circle cx="30" cy="40" r="22" fill="none" stroke="#9aa7ad" stroke-width="6"/><circle cx="30" cy="40" r="12" fill="#0b1820" stroke="#d6eef8"/><rect x="14" y="64" width="32" height="6" rx="2" fill="#7d8f98"/></svg>'
+  })[it.kind] || '';
+  const itemPic = it => UI.itemSVG(it) || extraSVG(it);
   const EXTRA = {
     en: { io_access: 'Intraosseous (IO) access', o2: 'Oxygen', foley: 'Urinary catheter', ngt: 'Nasogastric tube', aline: 'Arterial line', cvc: 'Central venous line', lp: 'Lumbar puncture', endo: 'Endocrinology consult', surg: 'Surgical consult', ward: 'Admit to the pediatric ward',
       abg: 'Arterial blood gas', coag: 'Coagulation (PT/INR, PTT)', tns: 'Type and screen / crossmatch', bcx: 'Blood culture', ua: 'Urinalysis + urine culture', lipase: 'Lipase / amylase', lft: 'Liver function tests', cxr: 'Chest X-ray', usabd: 'Abdominal ultrasound',
       dexBolus: 'Dextrose 10% IV bolus', prbc: 'Packed red cells', ffp: 'Fresh frozen plasma', plt: 'Platelets', albumin: 'Albumin 5%', cagluc: 'Calcium gluconate 10% IV', paracet: 'Paracetamol IV', morphine: 'Morphine IV', midaz: 'Midazolam IV', ceftriax: 'Ceftriaxone IV',
+      insulinVial: 'Regular insulin (Actrapid)', kclConc: 'Concentrated KCl: goes into the IV bag', kclWhere: 'Potassium is added to the maintenance fluids: set it on the infusion pump.',
       modes: { nc: 'Nasal cannula', mask: 'Face mask', nrb: 'Non-rebreather', hfnc: 'High-flow' } },
     he: { io_access: 'גישה תוך-גרמית (IO)', o2: 'חמצן', foley: 'קטטר בשלפוחית', ngt: 'זונדה (NG)', aline: 'קו עורקי', cvc: 'צנתר ורידי מרכזי', lp: 'ניקור מותני', endo: 'ייעוץ אנדוקרינולוג', surg: 'ייעוץ כירורג', ward: 'אשפוז במחלקת ילדים',
       abg: 'גזים עורקיים', coag: 'תפקודי קרישה (PT/INR, PTT)', tns: 'סוג והצלבה', bcx: 'תרבית דם', ua: 'בדיקת שתן + תרבית', lipase: 'ליפאז / עמילאז', lft: 'תפקודי כבד', cxr: 'צילום חזה', usabd: 'US בטן',
       dexBolus: 'בולוס גלוקוז 10% IV', prbc: 'מנות דם (PRBC)', ffp: 'פלזמה (FFP)', plt: 'טסיות', albumin: 'אלבומין 5%', cagluc: 'קלציום גלוקונט 10% IV', paracet: 'פרצטמול IV', morphine: 'מורפין IV', midaz: 'מידזולם IV', ceftriax: 'צפטריאקסון IV',
+      insulinVial: 'אינסולין רגולר (Actrapid)', kclConc: 'KCl מרוכז: מוסיפים לשקית העירוי', kclWhere: 'אשלגן מוסיפים לנוזלי האחזקה: מגדירים אותו במשאבת העירוי.',
       modes: { nc: 'משקפי חמצן', mask: 'מסכה', nrb: 'מסכה עם שקית', hfnc: 'זרימה גבוהה' } }
   };
   const oname = id => L.o[id] || EXTRA[LANG][id] || id;
   const LAB_DELAY = { poc: 2, vbg: 10, abg: 10, chem: 40, bhb: 5, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 5, dmw: 2880, cxr: 30, usabd: 60, ct: 40 };
   /* invasive or costly orders this case does not need: shown in the debrief as unnecessary */
-  const UNNEEDED = { cvc: 3, prbc: 4, ffp: 3, plt: 3, albumin: 2, lp: 4, intubE: 0, ceftriax: 1, morphine: 1, midaz: 2, usabd: 1, surg: 0 };
+  const UNNEEDED = { cvc: 3, prbc: 4, ffp: 3, plt: 3, albumin: 2, lp: 4, ceftriax: 1, morphine: 1, midaz: 2, usabd: 1, surg: 0 };
 
   /* ---------------- shell ---------------- */
   function setLang(l) { LANG = l; L = I18N[l]; ls('psim-lang', l); document.documentElement.lang = l; document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr'; }
@@ -61,10 +124,10 @@
 
   function home() {
     stopLoop(); S = null;
-    app.innerHTML = `<div class="home"><header class="top"><h1>${esc(L.appTitle)}</h1><button class="btn ghost" data-lang>${esc(L.lang)}</button></header>
+    app.innerHTML = `<div class="phome"><div class="top"><div><span class="eyebrow">ER · PICU</span><h1>${esc(L.appTitle)}</h1></div><button class="btn ghost" data-lang>${esc(L.lang)}</button></div>
       <p class="sub">${esc(L.appSub)}</p>
-      <div class="lv"><span>${esc(L.level)}:</span>${['guided', 'indep'].map(k => `<label class="pill ${LEVEL === k ? 'on' : ''}"><input type="radio" name="lv" value="${k}" ${LEVEL === k ? 'checked' : ''}>${esc(L[k])}</label>`).join('')}<small>${esc(L[LEVEL + 'D'])}</small></div>
-      <div class="cards"><button class="case" data-case><b>${esc(CT().title)}</b><span>${esc(CT().tag)}</span><span class="brief">${esc(CT().brief)}</span></button></div></div>`;
+      <div class="lvpick"><span class="eyebrow">${esc(L.level)}</span>${['guided', 'indep'].map(k => `<label class="pill ${LEVEL === k ? 'on' : ''}"><input type="radio" name="lv" value="${k}" ${LEVEL === k ? 'checked' : ''}>${esc(L[k])}</label>`).join('')}<small>${esc(L[LEVEL + 'D'])}</small></div>
+      <button class="ccard" data-case><span class="tag">${esc(CT().tag)}</span><b>${esc(CT().title)}</b><span class="muted">${esc(CT().brief)}</span></button></div>`;
     $$('input[name=lv]').forEach(r => r.addEventListener('change', () => { LEVEL = r.value; ls('psim-level', LEVEL); home(); }));
     $('[data-case]').addEventListener('click', briefing);
   }
@@ -75,14 +138,14 @@
 
   /* ---------------- session ---------------- */
   function startCase() {
-    S = { m: M.create(C.model), log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'care', pane: 'mon', lastHr: null, uoLow: 0 };
+    S = { m: M.create(C.model), log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
     msg('sys', CT().triage);
     renderSim(); loop();
   }
   const now = () => S.m.t;
   function msg(kind, text, crit) {
     S.msgs.push({ t: now(), kind, text, crit: !!crit });
-    if (crit) { pause(); Snd.alert(); }
+    if (crit) { pause(); UI.Sound.alarmMed(); }
     renderFeed();
   }
   const did = id => S.log.some(e => e.id === id);
@@ -107,7 +170,7 @@
       case 'neuro': case 'io': S.standing[id] = { every: 60, next: now() + 60 }; break;
       case 'att': S.att.push(now()); msg('att', m.ce > 0.25 ? MS.attCE : p.ins ? MS.attIns : MS.attGen); break;
       case 'picu': S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); break;
-      case 'ward': case 'endo': case 'surg': case 'o2': case 'foley': case 'ngt': case 'aline': case 'cvc': case 'lp': msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
+      case 'ward': case 'endo': case 'surg': case 'o2': case 'foley': case 'ngt': case 'aline': case 'cvc': case 'lp': S.flags[id] = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
       case 'intub': m.vent = true; msg('att', MS.intub); break;
       case 'ct': if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) { msg('att', MS.ctEarly); S.log[S.log.length - 1].early = true; } else addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
       case 'cxr': case 'usabd': addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'תקין' : 'Normal' }); break;
@@ -137,7 +200,7 @@
           else drawLab(id);
         } else msg('nurse', oname(id) + ' ✓');
     }
-    renderOrders(); renderFlow(); renderStatus();
+    renderSitu(); renderFlow(); renderStatus();
   }
   function drawLab(id) {
     const m = S.m; let v;
@@ -162,7 +225,8 @@
   function loop() {
     stopLoop();
     timer = setInterval(() => {
-      if (!S || S.ended || !S.speed) return;
+      if (!S || S.ended) return;
+      if (!S.speed) { renderStatus(); return; }
       S.acc += S.speed * 0.1;
       let n = Math.floor(S.acc); S.acc -= n;
       while (n-- > 0 && S.speed && !S.ended) minute();
@@ -180,6 +244,7 @@
     });
     /* results arriving */
     S.res.forEach(r => { if (!r.seen && r.ready <= t) { r.seen = true; r.at = t; resultArrived(r); } });
+    if (S.flags.mon && !S.nbp.busy && t >= S.nbp.next) nbpStart();
     if (S.flags.picuAt && t >= S.flags.picuAt && S.flags.loc !== 'PICU') { S.flags.loc = 'PICU'; msg('sys', L.msgs.picuIn); }
     events();
     if (m.dead) { msg('nurse', L.msgs.died, true); endCase(); }
@@ -207,62 +272,155 @@
     if (t >= 24 * 60) endCase();
   }
 
-  /* ---------------- rendering ---------------- */
+  /* ---------------- rendering (the PALS resus-bay look) ---------------- */
+  const ICON = (n) => UI.ICA[n] || UI.ICA.drugSyr;
+  const zoneOf = w => w < 6 ? ['grey', 'Grey'] : w < 8 ? ['pink', 'Pink'] : w < 10 ? ['red', 'Red'] : w < 12 ? ['purple', 'Purple'] : w < 15 ? ['yellow', 'Yellow'] : w < 19 ? ['white', 'White'] : w < 24 ? ['blue', 'Blue'] : w < 30 ? ['orange', 'Orange'] : w <= 36 ? ['green', 'Green'] : ['adult', 'Adult'];
   function renderSim() {
-    const g = LEVEL === 'guided';
+    const m = S.m, he = LANG === 'he';
     app.innerHTML = `<div class="sim">
-      <header class="bar"><button class="iconbtn" data-home aria-label="${esc(L.home)}">‹</button>
-        <div class="ttl"><b>${esc(CT().title)}</b><span id="loc"></span></div>
-        <div class="clock"><small>${esc(L.clock)}</small><b id="clk"></b><small id="since"></small></div>
-        <div class="speed" role="group" aria-label="${esc(L.speed)}">${[0, 1, 5, 15].map(x => `<button class="sp" data-sp="${x}" title="${x ? esc(L.perSec(x)) : esc(L.paused)}">${x ? '▶' + (x > 1 ? '×' + x : '') : '❚❚'}</button>`).join('')}<button class="sp" data-skip title="${esc(L.next)}">+1h</button></div>
-        <button class="btn ghost sm" data-lang>${esc(L.lang)}</button><button class="btn ghost sm" data-end>${esc(L.endCase)}</button></header>
-      <nav class="tabsm">${['mon', 'ord', 'res', 'feed'].map(k => `<button data-pane="${k}" class="${S.pane === k ? 'on' : ''}">${esc({ mon: L.monitor, ord: L.orders, res: L.results, feed: L.nurse }[k])}</button>`).join('')}</nav>
-      <main class="grid pane-${S.pane}">
-        <section class="col cmon"><div class="mon"><canvas id="cv"></canvas><div class="nums" id="nums"></div><div class="nosig" id="nosig">${esc(L.noMon)}<small>${esc(L.attachHint)}</small></div></div>
-          <div class="pt" id="ptbox"></div></section>
-        <section class="col cord"><div class="tabs">${Object.keys(CATALOG).map(k => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${esc(L.tabs[k])}</button>`).join('')}</div>
-          <div class="cat" id="cat"></div><h3>${esc(L.active)}</h3><div id="active"></div></section>
-        <section class="col cres"><h3>${esc(L.results)}</h3><div class="flow" id="flow"></div></section>
-        <section class="col cfeed"><h3>${esc(L.nurse)}</h3><ol class="feed" id="feed"></ol></section>
-      </main></div>`;
-    MON = new Monitor($('#cv'));
-    MON.onBeat = () => { if (S && S.flags.mon && S.speed) Snd.beep(S.m.SpO2); };
-    app.onclick = e => {
-      const sp = e.target.closest('[data-sp]'); if (sp) { S.speed = +sp.dataset.sp; Snd.ensure(); renderClock(); return; }
-      if (e.target.closest('[data-skip]')) { const t0 = now(); S.speed = 1; while (now() < t0 + 60 && S.speed && !S.ended) minute(); if (!S.ended) { S.speed = 0; renderLive(); } return; }
-      const tb = e.target.closest('[data-tab]'); if (tb) { S.tab = tb.dataset.tab; renderSim(); return; }
-      const pn = e.target.closest('[data-pane]'); if (pn) { S.pane = pn.dataset.pane; renderSim(); return; }
-      if (e.target.closest('[data-home]')) { home(); return; }
-      if (e.target.closest('[data-end]')) { const m = modal(`<p>${esc(L.endQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); m.el.onclick = ev => { if (ev.target.closest('[data-y]')) { m.close(); endCase(); } else if (ev.target.closest('[data-n]')) m.close(); }; return; }
-      const st = e.target.closest('[data-stop]'); if (st) { stopOrder(st.dataset.stop); return; }
-      const ob = e.target.closest('[data-o]'); if (ob) { openForm(ob.dataset.o); }
-    };
-    renderCat(); renderOrders(); renderFlow(); renderFeed(); renderLive();
+    <div class="simbar"><div class="in">
+      <button class="iconbtn" data-home aria-label="${esc(L.home)}">${he ? '›' : '‹'}</button>
+      <div class="ttl"><b>${esc(CT().title)}</b><span><i class="lvtag lv${LEVEL === 'guided' ? 1 : 3}">${esc(L[LEVEL])}</i> ${esc(m.age)}${he ? ' שנים' : 'y'} · <span id="ttlWt">${S.flags.weighed ? m.wt : '?'}</span> ${he ? 'ק״ג' : 'kg'} · <span id="loc"></span></span></div>
+      <div class="clock"><small>${esc(L.since)}</small><b id="since">0:00</b></div>
+      <div class="clock"><small>${esc(L.clock)}</small><b id="clk"></b></div>
+      <div class="speed" role="group" aria-label="${esc(L.speed)}">${[0, 1, 5, 15].map(x => `<button class="sp" data-sp="${x}" title="${x ? esc(L.perSec(x)) : esc(L.paused)}">${x ? '▶' + (x > 1 ? '×' + x : '') : '❚❚'}</button>`).join('')}<button class="sp" data-skip title="${esc(L.next)}">+1h</button></div>
+      <button class="iconbtn" data-snd aria-label="${esc(L.sound)}">${UI.sound ? '🔊' : '🔇'}</button>
+      <button class="btn ghost sm" data-lang>${esc(L.lang)}</button><button class="btn ghost sm" data-end>${esc(L.endCase)}</button>
+    </div></div>
+    <div class="simgrid">
+      <section class="bay">
+        <div class="monitor imv" id="mon">
+          <div class="mhd"><span class="mbed" id="mbed"></span><span class="malm" id="mAlm"></span><span class="mtmp">T <b id="vT">--</b> °C</span><button class="msil" id="mSil" type="button">${esc(L.silence)}</button><span class="mclk" id="mClk"></span></div>
+          <div class="mmain">
+            <canvas id="cv"></canvas>
+            <div class="nums">
+              <div class="nb" style="--vc:var(--ecg)"><div class="nl"><span>HR</span><i>160<br>70</i></div><b id="vHR">--</b></div>
+              <div class="nb" style="--vc:var(--spo2)"><div class="nl"><span>SpO₂</span><i>100<br>90</i></div><b id="vSp">--</b><span class="pr">Pulse <em id="vPR">--</em></span></div>
+              <div class="nb" style="--vc:var(--rr)"><div class="nl"><span>RR</span><i>30<br>12</i></div><b id="vRR">--</b></div>
+              <div class="nb co2" style="--vc:var(--co2)"><div class="nl"><span>EtCO₂</span><i>mmHg</i></div><b id="vCO">--</b></div>
+            </div>
+            <div class="nosignal" id="nosig"><div><b>${esc(L.noMon)}</b>${esc(L.attachHint)}</div></div>
+          </div>
+          <div class="mnbp" id="wBP" style="--vc:var(--bp)" role="button" tabindex="0"><span class="nl"><span>NBP</span><i id="nbpI">Auto 15 min</i></span><span class="nbpst" id="nbpSt">START</span><b id="vBP">--</b><em id="vMAP"></em></div>
+        </div>
+        <div class="patient">
+          <div class="pt" id="pt">${UI.patientSVG('child')}</div>
+          <div class="ptinfo">
+            <div id="ptZone"></div>
+            <div class="who">${esc(he ? `בן ${m.age}` : `${m.age}-year-old boy`)}</div>
+            <div class="look" id="look"></div>
+            <div class="flags" id="flags"></div>
+          </div>
+          <div class="ptacts" id="ptacts">${bedHTML()}</div>
+        </div>
+      </section>
+      <section class="console">
+        <div class="situ" id="situ"></div>
+        <div class="cart" id="cart">${cartHTML()}</div>
+        <details class="recorder" open><summary><span>${esc(L.flowT)}</span><span id="flowN"></span></summary><div class="flow" id="flow"></div></details>
+        <details class="recorder"><summary><span>${esc(L.logT)}</span><span id="logN"></span></summary><ol id="recL"></ol></details>
+      </section>
+    </div></div>`;
+    MON = new UI.Monitor($('#cv'), { sweep: 3.5, full: true, onBeat: k => { if (S && S.flags.mon && S.speed && k === 'pleth') UI.Sound.pulseTone(S.m.SpO2); } });
+    app.onclick = onClick;
+    const nbpGo = () => { if (S && S.flags.mon && !S.nbp.busy) { UI.Sound.ensure(); nbpStart(); } };
+    $('#wBP').addEventListener('click', nbpGo);
+    $('#mSil').addEventListener('click', () => { S.silUntil = performance.now() + 120000; renderLive(); });
+    setTab(S.tab || 'drug'); renderSitu(); renderFlow(); renderFeed(); renderLive();
+  }
+  function bedHTML() {
+    const btn = (id, cls) => `<button class="pa ${cls}" data-o="${id}"><span class="ai">${ICON(BED_ICON[id])}</span><span class="at"><b>${esc(oname(id))}</b></span></button>`;
+    return `<div class="pabig">${BED.big.map(id => btn(id, 'big')).join('')}</div><div class="pasm">${BED.sm.map(id => btn(id, 'sm')).join('')}</div>`;
+  }
+  function cartHTML() {
+    const G = L.groups, F = L.groupsFull;
+    return `<div class="cartviz" role="tablist">
+    <div class="cartbody">
+      <button class="stn stn-pole" role="tab" data-tab="line" aria-label="${esc(F.line)}">${UI.CART_ART.pole}<span class="vh">${esc(G.line)}</span></button>
+      <div class="cbody">
+        <div class="stn stn-mon" data-tab="mon">${UI.CART_ART.mon}<button class="mhot mscreen" role="tab" data-tab="mon" style="left:5.8%;top:20.6%;width:94%;height:67.4%" aria-label="${esc(F.mon)}"></button><span class="stl">${esc(G.mon)}</span></div>
+        <div class="drawers">${['drug', 'line', 'air', 'lab'].map((id, i) => `<button class="stn drawer" role="tab" data-tab="${id}"><span class="dn">${i + 1}</span><span class="dlab">${esc(G[id])}</span>${i === 0 ? '<i class="seal" aria-hidden="true"></i>' : ''}<i class="handle" aria-hidden="true"></i></button>`).join('')}</div>
+        <div class="wheels" aria-hidden="true"><i></i><i></i></div>
+      </div>
+      <button class="stn stn-side" role="tab" data-tab="air" aria-label="${esc(F.air)}">${UI.CART_ART.side}<span class="vh">${esc(G.air)}</span></button>
+    </div></div>
+    <div class="tray" id="tray"><div class="trayhd" id="trayHd"></div><div id="grid"></div></div>`;
+  }
+  function setTab(tab) {
+    S.tab = tab;
+    $$('#cart [data-tab]').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    $('#tray').className = 'tray t-' + tab; $('#trayHd').textContent = L.groupsFull[tab];
+    const g = $('#grid');
+    if (tab === 'mon') { g.className = 'cartgrid'; g.innerHTML = ITEMS.mon.map(([id, ic]) => `<button class="cbtn" data-o="${id}"><span class="ai">${ICON(ic)}</span><span class="at"><b>${esc(oname(id))}</b></span></button>`).join(''); return; }
+    g.className = 'ritems';
+    g.innerHTML = ITEMS[tab].map(it => `<button class="ritem k-${it.kind}" data-o="${it.o}" title="${esc(oname(it.o === 'bolusNS' || it.o === 'bolusLR' ? 'bolus' : it.o))}"><span class="rpic">${itemPic(it)}</span><span class="rlabel" dir="ltr" lang="en" style="--cap:${it.cap || '#9aa7ad'}"><b>${esc(it.name)}</b><i>${esc(it.conc)}</i>${it.pack ? `<i>${esc(it.pack)}</i>` : ''}</span>${LEVEL === 'guided' ? `<span class="rcap">${esc(oname(it.o === 'bolusNS' || it.o === 'bolusLR' ? 'bolus' : it.o))}</span>` : ''}</button>`).join('');
+  }
+  function onClick(e) {
+    const sp = e.target.closest('[data-sp]'); if (sp) { S.speed = +sp.dataset.sp; UI.Sound.ensure(); renderClock(); return; }
+    if (e.target.closest('[data-skip]')) { const t0 = now(); S.speed = 1; while (now() < t0 + 60 && S.speed && !S.ended) minute(); if (!S.ended) { S.speed = 0; renderLive(); } return; }
+    if (e.target.closest('[data-snd]')) { UI.sound = !UI.sound; e.target.closest('[data-snd]').textContent = UI.sound ? '🔊' : '🔇'; return; }
+    const tb = e.target.closest('[data-tab]'); if (tb) { setTab(tb.dataset.tab); return; }
+    if (e.target.closest('[data-home]')) { home(); return; }
+    if (e.target.closest('[data-end]')) { const md = modal(`<p>${esc(L.endQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = ev => { if (ev.target.closest('[data-y]')) { md.close(); endCase(); } else if (ev.target.closest('[data-n]')) md.close(); }; return; }
+    const st = e.target.closest('[data-stop]'); if (st) { stopOrder(st.dataset.stop); return; }
+    const ob = e.target.closest('[data-o]'); if (ob) openForm(ob.dataset.o, ob);
   }
   function renderClock() {
     if (!S) return;
     const c = $('#clk'); if (c) c.textContent = hhmm(C.startClock + now());
-    const sn = $('#since'); if (sn) sn.textContent = `${L.since} ${dur(now())}`;
+    const sn = $('#since'); if (sn) sn.textContent = dur(now());
     $$('[data-sp]').forEach(b => b.classList.toggle('on', +b.dataset.sp === S.speed));
     const lc = $('#loc'); if (lc) lc.textContent = L.loc[S.flags.loc];
+    const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : L.bedED;
+    const mc = $('#mClk'); if (mc) mc.textContent = hhmm(C.startClock + now());
+  }
+  /* non-invasive BP: measures every 15 minutes of case time and on demand; the cuff cycle runs in real seconds */
+  function nbpStart() { const n = S.nbp; n.busy = true; n.t0 = performance.now(); n.peak = Math.round(S.m.SBP + 30); n.step = 0; UI.Sound.cuffPump(3); }
+  function nbpTick() {
+    const n = S.nbp; if (!n.busy) return;
+    const el = (performance.now() - n.t0) / 1000;
+    if (el < 3) { n.cuff = Math.round(n.peak * el / 3); return; }
+    const k = Math.min(9, Math.floor((el - 3) / 0.6)); if (k > n.step) { n.step = k; UI.Sound.cuffStep(); }
+    n.cuff = Math.round(n.peak - (n.peak - S.m.DBP + 10) * k / 9);
+    if (el >= 8.5) { n.busy = false; n.v = { s: S.m.SBP + Math.round((Math.random() - 0.5) * 4), d: S.m.DBP + Math.round((Math.random() - 0.5) * 4) }; n.at = hhmm(C.startClock + now()); n.next = now() + 15; UI.Sound.cuffDone(); }
   }
   function renderLive() { renderClock(); renderStatus(); }
   function renderStatus() {
-    if (!S || !$('#nums')) return;
-    const m = S.m, on = !!S.flags.mon;
+    if (!S || !$('#vHR')) return;
+    const m = S.m, on = !!S.flags.mon, n = S.nbp;
+    nbpTick();
     $('#nosig').hidden = on;
-    MON.set({ hr: m.HR, k: m.K, spo2: m.SpO2, rr: m.RR, deep: m.pCO2 < 28 && !m.vent, irreg: m.ce > 0.6 && !m.vent, perf: m.perf, on });
-    const v = (k, val, u, c) => `<div class="nb" style="--c:${c}"><small>${k}</small><b>${on ? val : '--'}</b>${u ? `<i>${u}</i>` : ''}</div>`;
-    const bpT = S.lastBP && now() - S.lastBP.t < 15 ? S.lastBP : (S.lastBP = { t: now(), v: `${m.SBP}/${m.DBP}` });
-    $('#nums').innerHTML = v('HR', m.HR, '', '#3ef08f') + v('SpO₂', m.SpO2, '%', '#4fc3ff') + v('NIBP', bpT.v, '', '#ff6b7a') + v('RR', m.RR, '', '#ffd84a') + v('T', m.temp.toFixed(1), '°C', '#ffb46b');
-    const io = m.io;
-    $('#ptbox').innerHTML = `<div class="ptrow"><b>${esc(L.patient)}</b><span>${m.age}y · ${S.flags.weighed ? m.wt + ' kg' : '? kg'}</span><span>${esc(L.loc[S.flags.loc])}</span></div>
-      <div class="ptrow"><span>${esc(L.flow.IN)} ${Math.round(io.inTotal)}</span><span>${esc(L.flow.OUT)} ${Math.round(io.out)}</span><span>${esc(L.flow.UO)} ${r1(io.lastHourOut / m.wt)}</span></div>
-      <div class="ptrow infs"><span>${esc(oname('main'))}: ${m.inf.main.rate ? `${L.fl[m.inf.main.base]}${m.inf.main.dex ? ' D' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' KCl ' + m.inf.main.kcl : ''} · ${m.inf.main.rate} mL/h` : '—'}</span><span>${esc(L.o.insDrip.split(' (')[0])}: ${m.inf.insulin ? m.inf.insulin + ' u/kg/h' : '—'}</span></div>`;
-  }
-  function renderCat() {
-    const g = LEVEL === 'guided';
-    $('#cat').innerHTML = CATALOG[S.tab].map(([id, o]) => `<button class="ord" data-o="${id}">${esc(oname(id))}${o === 'standing' ? ` <small>⟳</small>` : ''}</button>`).join('');
+    $('#mon').classList.toggle('capno', on && !!m.vent);
+    const ta = m.K > 6.5 ? 0.7 : m.K > 5.5 ? 0.45 : m.K < 3 ? 0.07 : m.K < 3.5 ? 0.15 : undefined, u = m.K < 3 ? 0.13 : m.K < 3.5 ? 0.06 : 0;
+    MON.set({ monitor: on, rhythm: m.HR >= 100 ? 'stach' : 'nsr', hr: m.HR, pulse: !m.dead, cpr: false, co2: m.vent ? 38 : null, vent: m.vent ? 3 : null, tube: !!m.vent, rp: m.RR ? 60 / m.RR : null, perf: m.perf, ta, u });
+    const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
+    set('vHR', on ? m.HR : '--'); set('vSp', on ? m.SpO2 : '--'); set('vPR', on ? m.HR : '--'); set('vRR', on ? m.RR : '--'); set('vCO', on && m.vent ? 38 : '--'); set('vT', on ? m.temp.toFixed(1) : '--');
+    const nv = n.v;
+    set('vBP', !on ? '--' : n.busy ? String(n.cuff) : nv ? `${nv.s}/${nv.d}` : '--'); set('vMAP', on && nv && !n.busy ? `(${Math.round((nv.s + 2 * nv.d) / 3)})` : '');
+    $('#wBP').classList.toggle('meas', on && n.busy);
+    set('nbpI', !on ? 'Auto 15 min' : n.busy ? (performance.now() - n.t0 < 3000 ? 'Inflating' : 'Measuring') : n.at ? `Auto 15 min · ${n.at}` : 'Auto 15 min'); set('nbpSt', n.busy ? 'CUFF' : 'START');
+    /* alarms: limits only, like the bedside monitor */
+    let msgA = '', lvl = '';
+    if (on) {
+      if (m.SpO2 < 85) { lvl = 'hi'; msgA = '*** SpO₂ Low'; } else if (m.SpO2 < 90) { lvl = 'med'; msgA = '** SpO₂ Low'; }
+      else if (nv && nv.s < 90) { lvl = 'med'; msgA = '** NBP Sys Low'; } else if (m.HR > 160) { lvl = 'med'; msgA = '** HR High'; } else if (m.HR < 70) { lvl = 'hi'; msgA = '*** HR Low'; }
+    }
+    const sil = S.silUntil && performance.now() < S.silUntil, al = $('#mAlm');
+    al.textContent = msgA; al.className = 'malm' + (lvl ? ' ' + lvl : '') + (sil && msgA ? ' sil' : ''); $('#mSil').classList.toggle('on', !!sil);
+    if (on && lvl === 'hi' && !sil && S.speed && performance.now() - (S.alarmT || 0) > 6000) { S.alarmT = performance.now(); UI.Sound.alarm(); }
+    /* the child */
+    const skin = m.dead ? 'grey' : m.ce > 0.6 ? 'grey' : m.perf < 0.72 ? 'pale' : 'pink', sk = UI.SKIN[skin] || UI.SKIN.pink, pt = $('#pt');
+    pt.style.setProperty('--skin', sk[0]); pt.style.setProperty('--lips', sk[1]); pt.style.setProperty('--skinE', sk[2] || '#a8796a');
+    pt.style.setProperty('--br', (m.RR ? Math.max(0.8, Math.min(6, 60 / m.RR)) : 3) + 's');
+    pt.className = 'pt skin-' + skin + (m.RR && !m.dead ? ' breathing' : '') + (m.GCS >= 15 ? ' eyes-open' : m.GCS >= 12 ? ' eyes-half' : '')
+      + (m.pCO2 < 26 && !m.vent ? ' wob' : '') + (on ? ' has-leads' : '') + (S.flags.io ? ' has-io' : '') + (S.flags.o2 && !m.vent ? ' has-mask' : '') + (m.vent ? ' has-tube' : '');
+    const tw = $('#ttlWt'); if (tw) tw.textContent = S.flags.weighed ? m.wt : '?';
+    const z = zoneOf(m.wt);
+    $('#ptZone').innerHTML = S.flags.weighed ? `<span class="zone" style="--zc:var(--z-${z[0]})">${esc(z[1])} · ${m.wt} ${LANG === 'he' ? 'ק״ג' : 'kg'}</span>` : `<span class="zone" style="--zc:var(--dim)">? ${LANG === 'he' ? 'ק״ג' : 'kg'}</span>`;
+    const he = LANG === 'he';
+    $('#look').textContent = m.dead ? '' : [m.GCS >= 15 ? (he ? 'ער' : 'Awake') : m.GCS >= 13 ? (he ? 'ישנוני' : 'Drowsy') : (he ? 'קשה להעיר' : 'Hard to rouse'), m.pCO2 < 26 && !m.vent ? (he ? 'נשימה עמוקה ומהירה' : 'deep, fast breathing') : '', m.headache ? (he ? 'כאב ראש' : 'headache') : '', `CRT ${m.CRT} s`].filter(Boolean).join(' · ');
+    const FL = [[he ? 'מוניטור' : 'Monitor', on], ['IV', S.flags.iv], ['IO', S.flags.io], [he ? 'צום' : 'NPO', S.flags.npo], ['O₂', S.flags.o2], [he ? 'ראש 30°' : 'Head 30°', m.headUp], [he ? 'קטטר' : 'Foley', S.flags.foley], ['NG', S.flags.ngt], [he ? 'מונשם' : 'Ventilated', m.vent]];
+    $('#flags').innerHTML = FL.map(([n2, v]) => `<span class="flag${v ? ' on' : ''}">${esc(n2)}</span>`).join('');
   }
   function stopOrder(k) {
     const m = S.m;
@@ -271,35 +429,42 @@
     else delete S.standing[k];
     S.log.push({ t: now(), id: 'stop', p: { k } }); renderOrders(); renderStatus();
   }
-  function renderOrders() {
-    const el = $('#active'); if (!el) return;
-    const m = S.m, rows = [];
-    if (m.inf.main.rate) rows.push(['main', `${oname('main')}: ${L.fl[m.inf.main.base]}${m.inf.main.dex ? ' D' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCl ' + m.inf.main.kcl : ''} · ${m.inf.main.rate} mL/h`]);
-    if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} u/kg/h`]);
+  /* the situation card: the latest message, then what is running */
+  function renderSitu() {
+    const el = $('#situ'); if (!el || !S) return;
+    const m = S.m, last = S.msgs[S.msgs.length - 1], rows = [];
+    if (m.inf.main.rate) rows.push(['main', `${oname('main')}: ${L.fl[m.inf.main.base]}${m.inf.main.dex ? ' + D' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCl ' + m.inf.main.kcl : ''} · ${m.inf.main.rate} mL/h`]);
+    if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} u/kg/h (${r1(m.inf.insulin * m.wt)} u/h)`]);
     m.inf.boluses.filter(b => b.left > 0).forEach(b => rows.push([null, `${oname('bolus')}: ${L.fl[b.fluid]} · ${Math.round(b.left)} mL`]));
     Object.entries(S.standing).forEach(([k, o]) => rows.push([k, `${oname(k)} · ${L.every(o.every / 60)}`]));
-    el.innerHTML = rows.length ? rows.map(([k, txt]) => `<div class="act"><span>${esc(txt)}</span>${k ? `<button class="btn sm ghost" data-stop="${k}">${esc(L.stop)}</button>` : ''}</div>`).join('') : `<p class="muted">${esc(L.none)}</p>`;
+    const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys };
+    el.innerHTML = `<div class="hd"><span class="eyebrow">${esc(L.latest)} · ${last ? hhmm(C.startClock + last.t) : ''}</span></div>
+      ${last ? `<div class="fb ${last.crit ? 'bad' : last.kind === 'att' ? 'ok' : 'note'}"><b>${esc(who[last.kind])}</b><span>${esc(last.text)}</span></div>` : ''}
+      <div class="actl"><span class="eyebrow">${esc(L.active)}</span>${rows.length ? rows.map(([k, txt]) => `<div class="act"><span>${esc(txt)}</span>${k ? `<button class="btn sm ghost" data-stop="${k}">${esc(L.stop)}</button>` : ''}</div>`).join('') : `<p class="muted">${esc(L.none)}</p>`}</div>`;
   }
-  function openForm(id) {
-    const o = Object.values(CATALOG).flat().find(x => x[0] === id)[1] || {};
+  const renderOrders = () => renderSitu();
+  function openForm(id, btn) {
     const m = S.m, w = m.wt, g = LEVEL === 'guided';
-    if (!o.f && !o.lab && o !== 'standing') { order(id); return; }
-    if (o === 'standing') { order(id); return; }
-    const fields = o.lab ? [['freq', 'freq']] : o.f;
+    if (id === 'insulinVial') {
+      const md = modal(`<h2>${esc(oname('insulinVial'))}</h2><div class="opts">${['insDrip', 'insBolus', 'stopDrip'].map(k => `<button class="opt" data-k="${k}">${esc(oname(k))}</button>`).join('')}</div><div class="row"><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
+      md.el.onclick = e => { const k = e.target.closest('[data-k]'); if (k) { md.close(); openForm(k.dataset.k); } else if (e.target.closest('[data-x]')) md.close(); };
+      return;
+    }
+    if (id === 'kclConc') { msg('sys', EXTRA[LANG].kclWhere); openForm('main'); return; }
+    let preset = {};
+    if (id === 'bolusNS' || id === 'bolusLR') { preset.fluid = id === 'bolusNS' ? 'NS' : 'LR'; id = 'bolus'; }
+    const fields = FORMS[id];
+    if (!fields) { order(id); flash(btn); return; }
+    const cur = id === 'main' && m.inf.main.rate ? m.inf.main : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : preset;
     const fieldHTML = ([k, kind, opt]) => {
-      const lbl = esc(L.f[k] || k);
-      if (kind === 'sel') return `<label>${lbl}<select name="${k}">${opt.map(v => `<option value="${v}">${esc(k === 'fluid' || k === 'base' ? L.fl[v] : k === 'mode' ? EXTRA[LANG].modes[v] : k === 'dex' ? (v ? 'D' + v + '%' : '—') : v)}</option>`).join('')}</select></label>`;
+      const lbl = esc(L.f[k] || k), val = cur[k];
+      if (kind === 'sel') return `<label>${lbl}<select name="${k}">${opt.map(v => `<option value="${v}"${String(val) === String(v) ? ' selected' : ''}>${esc(k === 'fluid' || k === 'base' ? L.fl[v] : k === 'mode' ? EXTRA[LANG].modes[v] : k === 'dex' ? (v ? 'D' + v + '%' : '—') : v)}</option>`).join('')}</select></label>`;
       if (kind === 'freq') return `<label>${esc(L.f.freq)}<select name="freq"><option value="0">${esc(L.once)}</option>${[1, 2, 4].map(h => `<option value="${h}">${esc(L.every(h))}</option>`).join('')}</select></label>`;
-      const unit = { mlkg: L.f.mlkg, over: '', rate: '', dose: id === 'insDrip' ? L.f.ukgh : L.f.ukg, gkg: L.f.gkg, meqkg: L.f.meqkg, mmolkg: L.f.mmolkg }[k] || '';
-      return `<label>${lbl} <input name="${k}" type="number" step="any" inputmode="decimal" value="${opt}" dir="ltr"> <small>${esc(unit)}</small></label>`;
+      const unit = { mlkg: L.f.mlkg, over: '', rate: 'mL/h', dose: id === 'insDrip' ? L.f.ukgh : L.f.ukg, gkg: L.f.gkg, meqkg: L.f.meqkg, mmolkg: L.f.mmolkg }[k] || '';
+      return `<label>${lbl}<span class="inp"><input name="${k}" type="number" step="any" inputmode="decimal" value="${val ?? opt}" dir="ltr"><small>${esc(unit)}</small></span></label>`;
     };
     const mt = M.maint(w), lo = Math.round(1.5 * mt), hi = Math.round(2 * mt);
-    const helper = () => {
-      if (!g) return '';
-      if (id === 'main') return L.help.maint(mt, 0, lo, hi);
-      return '';
-    };
-    const md = modal(`<h3>${esc(oname(id))}</h3><form class="oform">${fields.map(fieldHTML).join('')}<p class="help" id="hlp">${esc(helper())}</p>
+    const md = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><form class="oform">${fields.map(fieldHTML).join('')}<p class="rule" id="hlp">${g && id === 'main' ? esc(L.help.maint(mt, 0, lo, hi)) : ''}</p>
       <div class="row"><button class="btn primary" type="submit">${esc(L.order)}</button><button class="btn ghost" type="button" data-x>${esc(L.back)}</button></div></form>`);
     const f = $('form', md.el);
     const live = () => {
@@ -309,10 +474,11 @@
       if (['bolus', 'hts', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin'].includes(id)) h.textContent = L.help.bol(Math.round(fd.mlkg * w));
     };
     f.addEventListener('input', live); live();
-    f.addEventListener('submit', e => { e.preventDefault(); const fd = Object.fromEntries(new FormData(f)); Object.keys(fd).forEach(k => { if (!isNaN(+fd[k]) && fd[k] !== '' && !['fluid', 'base', 'mode'].includes(k)) fd[k] = +fd[k]; }); if (Object.values(fd).some(v => v === '')) return; md.close(); order(id, fd); });
+    f.addEventListener('submit', e => { e.preventDefault(); const fd = Object.fromEntries(new FormData(f)); Object.keys(fd).forEach(k => { if (!isNaN(+fd[k]) && fd[k] !== '' && !['fluid', 'base', 'mode'].includes(k)) fd[k] = +fd[k]; }); if (Object.values(fd).some(v => v === '')) return; md.close(); order(id, fd); flash(btn); });
     md.el.addEventListener('click', e => { if (e.target.closest('[data-x]')) md.close(); });
     const first = $('input,select', f); if (first) first.focus();
   }
+  function flash(btn) { if (!btn) return; btn.classList.add('flashok'); setTimeout(() => btn.classList.remove('flashok'), 500); UI.Sound.ok && UI.Sound.ok(); }
   const ROWS = ['G', 'pH', 'pCO2', 'HCO3', 'Na', 'NaC', 'K', 'Cl', 'AG', 'eOsm', 'BUN', 'Cr', 'Ca', 'P', 'Mg', 'BHB', 'lact', 'GCS', 'pupils', 'UO', 'IN', 'OUT'];
   function renderFlow() {
     const el = $('#flow'); if (!el || !S) return;
@@ -328,11 +494,14 @@
     const flag = (k, v) => ({ G: v < 70 || v > 250, pH: v < 7.3, HCO3: v < 18, K: v < 3.5 || v > 5.5, Na: v < 135 || v > 145, NaC: v < 135 || v > 150, P: v < 2 }[k] ? 'hi' : '');
     el.innerHTML = (cs.length ? `<div class="tw"><table><thead><tr><th>${esc(L.flow.time)}</th>${cs.map(c => `<th>${hhmm(C.startClock + c.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(k => `<tr><th>${esc(L.flow[k])}</th>${cs.map(c => c.v[k] == null ? `<td>${c.pend ? '…' : ''}</td>` : `<td class="${flag(k, c.v[k])}">${esc(c.v[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${esc(L.none)}</p>`)
       + (txt.length ? `<ul class="txtres">${txt.map(r => `<li><b>${hhmm(C.startClock + r.drawn)} · ${esc(oname(r.kind))}</b> ${esc(r.v.txt)}</li>`).join('')}</ul>` : '');
+    const fn = $('#flowN'); if (fn) fn.textContent = cs.length ? hhmm(C.startClock + cs[cs.length - 1].t) : '';
   }
   function renderFeed() {
-    const el = $('#feed'); if (!el || !S) return;
+    const el = $('#recL'); if (!el || !S) return;
     const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys };
-    el.innerHTML = S.msgs.slice().reverse().map(x => `<li class="${x.kind}${x.crit ? ' crit' : ''}"><small>${hhmm(C.startClock + x.t)} · ${esc(who[x.kind])}</small>${esc(x.text)}</li>`).join('');
+    el.innerHTML = S.msgs.slice().reverse().map(x => `<li class="${x.crit ? 'bad' : ''}"><span>${hhmm(C.startClock + x.t)}</span><span><b>${esc(who[x.kind])}</b> · ${esc(x.text)}</span></li>`).join('');
+    const ln = $('#logN'); if (ln) ln.textContent = S.msgs.length;
+    renderSitu();
   }
 
   /* ---------------- scoring ---------------- */

@@ -9,6 +9,8 @@ window.I18N = {
     monitor: 'Monitor', orders: 'Orders', results: 'Results', nurse: 'Nurse & events', patient: 'Patient',
     noMon: 'Not connected', attachHint: 'Order a cardiac monitor', active: 'Active orders', none: 'None yet',
     tabs: { care: 'Care', labs: 'Labs', fluids: 'Fluids', insulin: 'Insulin', meds: 'Drugs' },
+    groups: { mon: 'Monitor', drug: 'Drugs', line: 'IV / IO, fluids, blood', air: 'Airway & procedures', lab: 'Labs & imaging' }, groupsFull: { mon: 'Monitor (on top of the cart)', drug: 'Drawer 1 · Drugs', line: 'Drawer 2 · IV / IO, fluids, blood products', air: 'Drawer 3 · Airway & procedures', lab: 'Drawer 4 · Labs & imaging' },
+    bedside: 'At the patient', team: 'Team & disposition', standing: 'Standing orders', flowT: 'Flow sheet', logT: 'Events', silence: 'Silence', sound: 'Sound', bedED: 'ED · Resus 2', bedPICU: 'PICU · Bed 4', latest: 'Latest',
     order: 'Order', stop: 'Stop', change: 'Change', once: 'Once', every: h => `every ${h} h`,
     o: {
       weigh: 'Weigh the patient', monitor: 'Cardiac monitor + SpO₂ + BP cuff', iv: 'Two IV lines', npo: 'Nothing by mouth (NPO)', headUp: 'Head of bed 30°, midline',
@@ -57,6 +59,8 @@ window.I18N = {
     monitor: 'מוניטור', orders: 'הוראות', results: 'תוצאות', nurse: 'אחות ואירועים', patient: 'המטופל',
     noMon: 'לא מחובר', attachHint: 'הזמינו מוניטור', active: 'הוראות פעילות', none: 'אין עדיין',
     tabs: { care: 'טיפול', labs: 'מעבדה', fluids: 'נוזלים', insulin: 'אינסולין', meds: 'תרופות' },
+    groups: { mon: 'מוניטור', drug: 'תרופות', line: 'IV / IO, נוזלים, דם', air: 'נתיב אוויר ופעולות', lab: 'מעבדה והדמיה' }, groupsFull: { mon: 'מוניטור (על העגלה)', drug: 'מגירה 1 · תרופות', line: 'מגירה 2 · IV / IO, נוזלים, מוצרי דם', air: 'מגירה 3 · נתיב אוויר ופעולות', lab: 'מגירה 4 · מעבדה והדמיה' },
+    bedside: 'ליד המטופל', team: 'צוות והחלטות', standing: 'הוראות קבועות', flowT: 'גיליון מעקב', logT: 'אירועים', silence: 'השתקה', sound: 'צליל', bedED: 'מיון · חדר החייאה 2', bedPICU: 'טיפול נמרץ · מיטה 4', latest: 'אחרון',
     order: 'הוראה', stop: 'הפסקה', change: 'שינוי', once: 'פעם אחת', every: h => `כל ${h} שע׳`,
     o: {
       weigh: 'שקילה', monitor: 'מוניטור לב + סטורציה + שרוול ל״ד', iv: 'שני עירויים', npo: 'צום (NPO)', headUp: 'הגבהת ראש המיטה ל-30°, ראש בקו האמצע',
