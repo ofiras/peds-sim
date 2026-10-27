@@ -51,7 +51,7 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(88 + 4 * defPct + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    s.HR = Math.round(88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
     s.RR = s.vent ? 22 : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));

@@ -96,7 +96,7 @@
     xray: '<svg viewBox="0 0 60 80"><rect x="10" y="12" width="40" height="56" rx="3" fill="#0b1820" stroke="#9aa7ad"/><path d="M30 20v40M22 26c-6 4-8 14-6 24M38 26c6 4 8 14 6 24M24 30h12M23 36h14M23 42h14M24 48h12" stroke="#d6eef8" stroke-width="1.4" fill="none" opacity=".8"/></svg>',
     scan: '<svg viewBox="0 0 60 80"><circle cx="30" cy="40" r="22" fill="none" stroke="#9aa7ad" stroke-width="6"/><circle cx="30" cy="40" r="12" fill="#0b1820" stroke="#d6eef8"/><rect x="14" y="64" width="32" height="6" rx="2" fill="#7d8f98"/></svg>'
   })[it.kind] || '';
-  const itemPic = it => UI.itemSVG(it) || extraSVG(it);
+  const itemPic = it => { const svg = UI.itemSVG(it) || extraSVG(it); return it.o === 'bhb' ? svg.replace('>mg/dL<', '>mmol/L<') : svg; };
   const EXTRA = {
     en: { io_access: 'Intraosseous (IO) access', o2: 'Oxygen', foley: 'Urinary catheter', ngt: 'Nasogastric tube', aline: 'Arterial line', cvc: 'Central venous line', lp: 'Lumbar puncture', endo: 'Endocrinology consult', surg: 'Surgical consult', ward: 'Admit to the pediatric ward',
       abg: 'Arterial blood gas', coag: 'Coagulation (PT/INR, PTT)', tns: 'Type and screen / crossmatch', bcx: 'Blood culture', ua: 'Urinalysis + urine culture', lipase: 'Lipase / amylase', lft: 'Liver function tests', cxr: 'Chest X-ray', usabd: 'Abdominal ultrasound',
@@ -169,6 +169,8 @@
     /* until he is weighed, doses go by the weight from the history (35 kg two months ago) */
     const m = S.m, w = S.flags.weighed ? m.wt : m.wt0, needIV = ['bolus', 'main', 'insDrip', 'insBolus', 'mannitol', 'hts', 'bicarb', 'kphos', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin', 'cagluc', 'ondan', 'paracet', 'morphine', 'midaz', 'ceftriax', 'intub'];
     if (needIV.includes(id) && !S.flags.iv && !S.flags.io) { msg('nurse', L.msgs.noIV); return; }
+    { const MAX = { bolus: { mlkg: 40 }, dexBolus: { mlkg: 5 }, prbc: { mlkg: 20 }, ffp: { mlkg: 20 }, plt: { mlkg: 20 }, albumin: { mlkg: 20 }, insDrip: { dose: 0.2 }, insBolus: { dose: 0.2 }, scRapid: { dose: 0.3 }, scBasal: { dose: 0.6 }, mannitol: { gkg: 1.5 }, hts: { mlkg: 10 }, bicarb: { meqkg: 2 }, kpo: { meqkg: 1 }, kphos: { mmolkg: 0.5 }, cagluc: { mlkg: 1 }, ondan: { mgkg: 0.2 }, paracet: { mgkg: 15 }, morphine: { mgkg: 0.2 }, midaz: { mgkg: 0.2 }, ceftriax: { mgkg: 100 }, main: { rate: Math.round(4 * M.maint(w)) } }[id];
+      const over = MAX && Object.keys(MAX).find(k => +p[k] > MAX[k]); if (over) { msg('nurse', L.msgs.tooMuch(oname(id), p[over], MAX[over]), true); return; } }
     if (['prbc', 'ffp', 'plt'].includes(id) && !S.res.some(r => r.kind === 'tns' && r.ready <= now())) { msg('nurse', L.msgs.noTS); return; }
     /* the attending objects to harmful orders before anything happens: cancel (logged, half the penalty) or insist */
     const W = CT().warn || {}, wk = id === 'intub' ? (m.ce < 0.55 ? 'intub' : null) : id === 'ward' ? (m.pH < 7.3 ? 'ward' : null) : id;
@@ -189,7 +191,7 @@
     /* procedures take time and are done once; physician procedures are yours, nursing ones the nurse's */
     const PR = PROC[id];
     if (PR) {
-      if (S.flags[PR.flag || id] || S.procs[id] != null) { msg('sys', L.already(oname(id))); return; }
+      if (S.flags[PR.flag || id] || S.procs[id] != null) { msg(id === 'iv' ? 'nurse' : 'sys', id === 'iv' ? L.msgs.ivAlready : L.already(oname(id))); return; }
       S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)), ce: m.ce });
       S.procs[id] = now() + PR.min;
       msg(PR.by === 'md' ? 'you' : 'nurse', PR.by === 'md' ? L.youStart(oname(id), PR.min) : L.nurseStart(oname(id), PR.min));
@@ -226,14 +228,14 @@
         if (m.ceOn != null) m.ceDrive = (m.ceDrive ?? 1) * (m.ceRisk < 1.5 ? 0.15 : 0.5);
         msg('nurse', id === 'mannitol' ? MS.man : MS.hts); break;
       }
-      case 'bicarb': m.bicarbNow = 2 * p.meqkg; m.ceRisk += 1.2; msg('nurse', MS.bicarb); break;
+      case 'bicarb': m.bicarbNow = 2 * p.meqkg; m.NaC += p.meqkg * w / (0.6 * m.wt0); m.ceRisk += 1.2; msg('nurse', MS.bicarb); break;
       case 'kpo': m.kPO = p.meqkg * w; msg('nurse', MS.kpo); break;
       case 'kphos': m.kPO = p.mmolkg * w * 1.47; m.Pdef = Math.max(0, m.Pdef - p.mmolkg * w); msg('nurse', MS.kphos); break;
       case 'dexBolus': m.G += p.mlkg * 50; msg('nurse', `${oname(id)}: ${Math.round(p.mlkg * w)} ${L.ml}`); break;
       case 'prbc': case 'ffp': case 'plt': case 'albumin': m.inf.boluses.push({ fluid: 'NS', left: p.mlkg * w, mlMin: p.mlkg * w / (id === 'albumin' ? 30 : 120) }); msg('nurse', `${oname(id)}: ${Math.round(p.mlkg * w)} ${L.ml}`); break;
       case 'ondan': msg('nurse', MS.ondan); break;
       case 'po': if (m.GCS < 14) { S.log[S.log.length - 1].fail = true; msg('nurse', MS.poDrowsy, true); break; }
-        if (m.pH > 7.3 && m.HCO3 > 18) { S.flags.po = true; S.flags.poAt = now(); msg('nurse', MS.po); } else { S.log[S.log.length - 1].fail = true; msg('nurse', MS.poEarly); m.ceRisk += 0.3; } break;
+        if (m.pH > 7.3 && m.HCO3 > 18) { S.later.push({ t: now() + 20, kind: 'nurse', text: MS.tray, tray: true }); msg('nurse', MS.trayOrdered); } else { S.log[S.log.length - 1].fail = true; msg('nurse', MS.poEarly); m.ceRisk += 0.3; } break;
       default:
         if (LABS.includes(id)) {
           if (p.freq && +p.freq) { S.standing[id] = { every: p.freq * 60, next: now() }; msg('nurse', `${oname(id)}: ${L.every(+p.freq)}`); }
@@ -241,6 +243,13 @@
         } else msg('nurse', oname(id) + (p.mgkg ? `: ${p.mgkg} ${L.f.mgkg} = ${r1(p.mgkg * w)} mg` : p.mlkg ? `: ${Math.round(p.mlkg * w * 10) / 10} ${L.ml}` : ' ✓'));
     }
     renderSitu(); renderFlow(); renderStatus();
+  }
+  /* the tray: with rapid insulin in the last 30 min he eats now; otherwise he eats in 10 min (guided: the nurse asks first) */
+  function trayCame(t) {
+    const sc = S.log.filter(e => e.id === 'scRapid').pop(), MS = L.msgs;
+    if (sc && t - sc.t <= 30) { S.flags.po = true; S.flags.poAt = t; msg('nurse', MS.po); return; }
+    if (LEVEL === 'guided') msg('nurse', MS.trayAsk);
+    S.later.push({ t: t + 10, kind: 'nurse', text: MS.po, eat: true });
   }
   function objection(id, p, text) {
     msg('att', text, true);
@@ -255,7 +264,7 @@
     S.flags[PR.flag || id] = true;
     if (id === 'intub') { m.vent = true; msg('you', L.msgs.intub); }
     else msg(PR.by === 'md' ? 'you' : 'nurse', id === 'iv' ? L.msgs.ivIn : L.youDone(oname(id)));
-    if (id === 'lp') addResult('csf', now() + 45, { txt: he ? `נוזל שדרה: צלול. תאים 2/µL, חלבון 25 מ״ג/ד״ל, גלוקוז ${Math.round(m.G * 0.6)} מ״ג/ד״ל (כ-60% מהסוכר בדם, תקין). צביעת גראם: ללא חיידקים.` : `CSF: clear. Cells 2/µL, protein 25 mg/dL, glucose ${Math.round(m.G * 0.6)} mg/dL (about 60% of blood glucose, normal). Gram stain: no organisms.` }, now());
+    if (id === 'lp') addResult('csf', now() + 45, { txt: he ? `נוזל שדרה: צלול. תאים ⁦2/µL⁩, חלבון 25 מ״ג/ד״ל, גלוקוז ${Math.round(m.G * 0.6)} מ״ג/ד״ל (כ-60% מהסוכר בדם, תקין). צביעת גראם: ללא חיידקים.` : `CSF: clear. Cells 2/µL, protein 25 mg/dL, glucose ${Math.round(m.G * 0.6)} mg/dL (about 60% of blood glucose, normal). Gram stain: no organisms.` }, now());
     renderStatus(); renderSitu();
   }
   /* hemoglobin falls as the dehydration is corrected (hemoconcentration on arrival) */
@@ -295,7 +304,8 @@
   function minute() {
     if (!S || S.ended) return;
     const m = S.m; M.step(m, 1); const t = m.t;
-    S.later = S.later.filter(x => { if (t >= x.t) { if (x.loc) S.flags.loc = x.loc; msg(x.kind, x.text); return false; } return true; });
+    const due = S.later.filter(x => t >= x.t); S.later = S.later.filter(x => t < x.t);
+    due.forEach(x => { if (x.loc) S.flags.loc = x.loc; if (x.eat) { S.flags.po = true; S.flags.poAt = t; } msg(x.kind, x.text); if (x.tray) trayCame(t); });
     /* standing orders */
     Object.entries(S.standing).forEach(([k, o]) => {
       if (t < o.next) return; o.next += o.every;
@@ -560,7 +570,7 @@
     if (m.inf.main.rate) rows.push(['main', `${oname('main')}: ${L.fl[m.inf.main.base]}${m.inf.main.dex ? ' + D' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCl ' + m.inf.main.kcl : ''} · ${m.inf.main.rate} ${L.mlh}`]);
     if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} ${L.f.ukgh} (${r1(m.inf.insulin * dw())} ${L.uh})`]);
     m.inf.boluses.filter(b => b.left > 0).forEach(b => rows.push([null, `${oname('bolus')}: ${L.fl[b.fluid]} · ${Math.round(b.left)} mL`]));
-    Object.entries(S.standing).forEach(([k, o]) => rows.push([k, `${oname(k)} · ${L.every(o.every / 60)}`]));
+    Object.entries(S.standing).forEach(([k, o]) => rows.push([k, oname(k).includes(L.every(o.every / 60)) ? oname(k) : `${oname(k)} · ${L.every(o.every / 60)}`]));
     const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays, cons: L.consSays };
     el.innerHTML = `<div class="hd"><span class="eyebrow">${esc(L.latest)} · ${last ? hhmm(C.startClock + last.t) : ''}</span></div>
       ${last ? `<div class="fb ${last.crit ? 'bad' : last.kind === 'att' ? 'ok' : 'note'}"><b>${esc(who[last.kind])}</b><span>${esc(last.text)}</span>${last.res != null ? `<span><button class="btn sm" data-res="${last.res}">${esc(L.view)}</button></span>` : ''}</div>` : ''}
@@ -570,7 +580,7 @@
   function openForm(id, btn) {
     const m = S.m, w = S.flags.weighed ? m.wt : m.wt0, g = LEVEL === 'guided';
     if (id === 'insulinVial') {
-      const md = modal(`<h2>${esc(oname('insulinVial'))}</h2><div class="opts">${['insDrip', 'insBolus', 'stopDrip'].map(k => `<button class="opt" data-k="${k}">${esc(oname(k))}</button>`).join('')}</div><div class="row"><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
+      const md = modal(`<h2>${esc(oname('insulinVial'))}</h2><div class="opts">${['insDrip', 'insBolus'].concat(m.inf.insulin ? ['stopDrip'] : []).map(k => `<button class="opt" data-k="${k}">${esc(oname(k))}</button>`).join('')}</div><div class="row"><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
       md.el.onclick = e => { const k = e.target.closest('[data-k]'); if (k) { md.close(); openForm(k.dataset.k); } else if (e.target.closest('[data-x]')) md.close(); };
       return;
     }
@@ -593,7 +603,7 @@
       return `<label>${lbl}<span class="inp"><input name="${k}" type="number" step="any" inputmode="decimal" value="${val ?? opt}" dir="ltr"><small>${esc(unit)}</small></span></label>`;
     };
     const mt = M.maint(w), lo = Math.round(1.5 * mt), hi = Math.round(2 * mt);
-    const md = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><form class="oform">${fields.map(fieldHTML).join('')}<p class="rule" id="hlp">${g && id === 'main' ? esc(L.help.maint(mt, 0, lo, hi)) : ''}</p>
+    const md = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><form class="oform">${fields.map(fieldHTML).join('')}<p class="rule" id="hlp">${g && id === 'main' ? esc((S.flags.weighed ? '' : L.help.byHist) + L.help.maint(mt, 0, lo, hi)) : ''}</p>
       <div class="row"><button class="btn primary" type="submit">${esc(L.order)}</button><button class="btn ghost" type="button" data-x>${esc(L.back)}</button></div></form>`);
     const f = $('form', md.el);
     const live = () => {
@@ -605,7 +615,7 @@
       if (['bolus', 'hts', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin'].includes(id)) h.textContent = L.help.bol(Math.round(fd.mlkg * w));
     };
     f.addEventListener('input', live); live();
-    f.addEventListener('submit', e => { e.preventDefault(); const fd = Object.fromEntries(new FormData(f)); Object.keys(fd).forEach(k => { if (!isNaN(+fd[k]) && fd[k] !== '' && !['fluid', 'base', 'mode'].includes(k)) fd[k] = +fd[k]; }); if (Object.values(fd).some(v => v === '')) return; md.close(); order(id, fd); flash(btn); });
+    f.addEventListener('submit', e => { e.preventDefault(); const fd = Object.fromEntries(new FormData(f)); Object.keys(fd).forEach(k => { if (!isNaN(+fd[k]) && fd[k] !== '' && !['fluid', 'base', 'mode'].includes(k)) fd[k] = +fd[k]; }); if (Object.values(fd).some(v => v === '')) { const h = $('#hlp', md.el); if (h) { h.textContent = L.needVal; h.classList.add('warn'); } return; } md.close(); order(id, fd); flash(btn); });
     md.el.addEventListener('click', e => { if (e.target.closest('[data-x]')) md.close(); });
     const first = $('input,select', f); if (first) first.focus();
   }
@@ -676,7 +686,7 @@
     const attBefore = t => S.att.some(a => a <= t && a >= t - 30);
     const bol = lg.filter(e => e.id === 'bolus' && e.t <= 240), bolKg = bol.reduce((a, e) => a + e.p.mlkg, 0);
     add('bolus', 8, null, `First hour: NaCl 0.9% 10 mL/kg over an hour (20 mL/kg only for severe dehydration with instability, with the attending). You gave ${r1(bolKg)} mL/kg.`, `שעה ראשונה: NaCl 0.9% 10 מ״ל/ק״ג במשך שעה (20 מ״ל/ק״ג רק בדהידרציה קשה עם חוסר יציבות, באישור כונן). ניתן: ${r1(bolKg)} מ״ל/ק״ג.`, 'prot',
-      !bol.length ? 0 : (bol[0].t > 30 ? 0.4 : 1) * (bolKg >= 9 && bolKg <= 11 ? 1 : bolKg > 11 && bolKg <= 21 ? (attBefore(bol[bol.length - 1].t) ? 0.8 : 0.5) : bolKg < 9 ? 0.5 : 0) * (bol.every(e => e.p.fluid === 'NS') ? 1 : 0.7) * (bol.every(e => e.p.over >= 30) ? 1 : 0.4));
+      !bol.length || bol.some(e => e.p.over < 20 && e.p.mlkg > 10) ? 0 : (bol[0].t > 30 ? 0.4 : 1) * (bolKg >= 9 && bolKg <= 11 ? 1 : bolKg > 11 && bolKg <= 21 ? (attBefore(bol[bol.length - 1].t) ? 0.8 : 0.5) : bolKg < 9 ? 0.5 : 0) * (bol.every(e => e.p.fluid === 'NS') ? 1 : 0.7) * (bol.every(e => e.p.over >= 30) ? 1 : 0.4));
     why((bol.length && bol[0].t > 30 ? (he ? 'באיחור (יעד: תוך 30 דק׳). ' : 'Late (target: within 30 min). ') : '') + (bol.length ? bol.map(e => `${e.p.mlkg} ${he ? 'מ״ל/ק״ג' : 'mL/kg'} ${L.fl[e.p.fluid]} ${he ? 'במשך' : 'over'} ${e.p.over} ${L.min} @ ${hhmm(C.startClock + e.t)}`).join('; ') : 'No bolus in the first 4 h.'), (bol.length && bol[0].t > 30 ? 'באיחור (יעד: תוך 30 דק׳). ' : '') + (bol.length ? bol.map(e => `${e.p.mlkg} מ״ל/ק״ג ${L.fl[e.p.fluid]} במשך ${e.p.over} ${L.min} @ ${hhmm(C.startClock + e.t)}`).join('; ') : 'לא ניתן בולוס ב-4 השעות הראשונות.'));
     const endT = Math.min(m.t, 12 * 60);
     let rs = 0, rn = 0; for (let t = 120; t <= endT; t += 10) { const c = mainAt(t); rs += c ? c.rate : 0; rn++; }
@@ -699,7 +709,7 @@
     const k50 = hit(firstRes(v => v.K != null && v.K < 5.5), hK(5.5)), mStart = mains.length ? mains[0].t : null;
     if (k50 != null && mStart != null) { const t0 = Math.max(k50, mStart); const c = lg.find(e => e.t >= t0 - 5 && e.t <= t0 + 60 && ((e.id === 'main' && e.p.kcl >= 40) || e.id === 'kpo')) || (mainAt(t0 + 60) && mainAt(t0 + 60).kcl >= 40); if (!c) { kOk -= 0.5; kNotes.push(he ? 'K<5.5 → KCl 40 מא״ק/ל׳' : 'K<5.5 → KCl 40'); } }
     const k35 = hit(firstRes(v => v.K != null && v.K < 3.5), hK(3.5));
-    if (k35 != null) { const up = e => (e.id === 'main' && e.p.kcl >= 60) || e.id === 'kpo', c = (mainAt(k35) && mainAt(k35).kcl >= 60) || lg.find(e => e.t >= k35 && e.t <= k35 + 60 && up(e)), late = !c && lg.find(e => e.t > k35 + 60 && e.t <= k35 + 150 && up(e));
+    if (k35 != null) { const up = e => (e.id === 'main' && e.p.kcl >= 60) || e.id === 'kpo', c = (mainAt(k35) && mainAt(k35).kcl >= 60) || lg.find(e => e.t >= k35 && e.t <= k35 + 60 && up(e)), late = !c && lg.find(e => e.t > k35 + 60 && e.t <= k35 + 360 && up(e));
       if (late) { kOk -= 0.15; kNotes.push(he ? `K<3.5 → 60 באיחור (${Math.round(late.t - k35)} דק׳)` : `K<3.5 → 60 late (${Math.round(late.t - k35)} min)`); }
       else if (!c) { kOk -= 0.4; kNotes.push(he ? 'K<3.5 → 60 מא״ק/ל׳ או פומי' : 'K<3.5 → 60/L or PO'); } }
     if (res.some(r => r.v.K > 5.5 && mainAt(r.ready) && mainAt(r.ready).kcl > 0)) { kOk -= 0.3; kNotes.push(he ? 'K>5.5 עם KCl רץ' : 'K>5.5 with KCl running'); }
@@ -710,11 +720,11 @@
     let dOk = 1; const hG = th => m.hist.find(h => h.G < th), g300 = hit(firstRes(v => v.G != null && v.G < 300), hG(300)), g180 = hit(firstRes(v => v.G != null && v.G < 180), hG(180));
     if (g300 != null && !(mainAt(g300 + 60) && mainAt(g300 + 60).dex >= 5)) dOk -= 0.5;
     if (g180 != null && !(mainAt(g180 + 60) && mainAt(g180 + 60).dex >= 10)) dOk -= 0.5;
-    { const d0 = mains.find(e => e.p.dex > 0); if (d0 && m.hist.some(h => h.t > d0.t + 60 && h.G > 350)) dOk -= 0.5; }
+    { const d0 = mains.find(e => e.p.dex > 0); if (d0 && m.hist.some(h => h.t > d0.t + 60 && h.G > 450)) dOk -= 0.5; }
     add('dextrose', 10, null, 'Add dextrose as glucose falls: below 300 → NaCl 0.9% + D5; below 180 → D10; target 150–250 mg/dL.', 'להוסיף גלוקוז כשהסוכר יורד: מתחת ל-300 → NaCl 0.9% + D5; מתחת ל-180 → D10; יעד 150–250 מ״ג/ד״ל.', 'prot', Math.max(0, dOk));
     { const d5 = mains.find(e => e.p.dex >= 5), d10 = mains.find(e => e.p.dex >= 10), h3 = hG(300), h18 = hG(180), d0 = mains.find(e => e.p.dex > 0), gmaxD = d0 ? Math.max(0, ...m.hist.filter(h => h.t > d0.t + 60).map(h => h.G)) : 0;
-      why(`${h3 ? `Glucose < 300 from ${at(h3.t)} → D5 ${at(d5 ? d5.t : null)}` : 'Glucose never fell below 300'}${h18 ? `; < 180 from ${at(h18.t)} → D10 ${at(d10 ? d10.t : null)}` : ''}${gmaxD > 350 ? `; on dextrose glucose rose to ${Math.round(gmaxD)} (too much dextrose)` : ''}.`,
-        `${h3 ? `סוכר < 300 מ-${at(h3.t)} → D5 ${at(d5 ? d5.t : null)}` : 'הסוכר לא ירד מתחת ל-300'}${h18 ? `; < 180 מ-${at(h18.t)} → D10 ${at(d10 ? d10.t : null)}` : ''}${gmaxD > 350 ? `; על גלוקוז הסוכר עלה עד ${Math.round(gmaxD)} (יותר מדי גלוקוז)` : ''}.`); }
+      why(`${h3 ? `Glucose < 300 from ${at(h3.t)} → D5 ${at(d5 ? d5.t : null)}` : 'Glucose never fell below 300'}${h18 ? `; < 180 from ${at(h18.t)} → D10 ${at(d10 ? d10.t : null)}` : ''}${gmaxD > 450 ? `; on dextrose glucose rose to ${Math.round(gmaxD)} (too much dextrose)` : ''}.`,
+        `${h3 ? `סוכר < 300 מ-${at(h3.t)} → D5 ${at(d5 ? d5.t : null)}` : 'הסוכר לא ירד מתחת ל-300'}${h18 ? `; < 180 מ-${at(h18.t)} → D10 ${at(d10 ? d10.t : null)}` : ''}${gmaxD > 450 ? `; על גלוקוז הסוכר עלה עד ${Math.round(gmaxD)} (יותר מדי גלוקוז)` : ''}.`); }
     const gmin = Math.min(...m.hist.map(h => h.G));
     add('hypo', 6, gmin >= 70, `No hypoglycemia (lowest glucose ${Math.round(gmin)} mg/dL). Below 60: call the attending.`, `ללא היפוגליקמיה (הסוכר הנמוך ביותר ${Math.round(gmin)} מ״ג/ד״ל). מתחת ל-60: ייעוץ כונן.`, 'prot');
     { const lowT = m.hist.filter(h => h.G < 60).length * 5, first = m.hist.find(h => h.G < 70); why(first ? `Glucose under 70 from ${at(first.t)}; under 60 for ${lowT} min; lowest ${Math.round(gmin)}.` : '', first ? `סוכר מתחת ל-70 מ-${at(first.t)}; מתחת ל-60 במשך ${lowT} דק׳; הנמוך ביותר ${Math.round(gmin)}.` : ''); }
@@ -723,7 +733,8 @@
     const st = k => lg.find(e => e.id === k && e.p && e.p.freq);
     const pocQ = lg.find(e => e.id === 'poc' && e.p.freq === 1 && e.t <= 60), labQ = lg.find(e => ['vbg', 'chem'].includes(e.id) && e.p.freq && e.p.freq <= 4 && e.t <= 120), neuQ = lg.find(e => e.id === 'neuro' && e.t <= 60);
     add('monitoring', 6, null, 'Standing orders: glucose every hour, neuro checks every hour, gases and electrolytes every 2–4 hours, hourly input/output.', 'הוראות קבועות: סוכר כל שעה, אומדן נוירולוגי כל שעה, גזים ואלקטרוליטים כל 2–4 שעות, מאזן נוזלים כל שעה.', 'prot', (pocQ ? 0.35 : 0) + (labQ ? 0.3 : 0) + (neuQ ? 0.25 : 0) + (did('io') ? 0.1 : 0));
-    { const miss = [[pocQ, he ? 'סוכר כל שעה (תוך שעה מההגעה)' : 'hourly glucose (within the first hour)'], [labQ, he ? 'גזים/אלקטרוליטים כל 2–4 שעות (תוך שעתיים)' : 'gas/electrolytes every 2–4 h (within 2 h)'], [neuQ, he ? 'אומדן נוירולוגי (תוך שעה)' : 'neuro checks (within the first hour)'], [did('io'), he ? 'מאזן נוזלים' : 'fluid balance']].filter(x => !x[0]).map(x => x[1]); why(miss.length ? (he ? 'חסר: ' : 'Missing: ') + miss.join(', ') : (he ? 'כל ההוראות הקבועות נרשמו בזמן.' : 'All standing orders in time.'), miss.length ? 'חסר: ' + miss.join(', ') : 'כל ההוראות הקבועות נרשמו בזמן.'); }
+    { const late = [[pocQ, lg.find(e => e.id === 'poc' && e.p.freq === 1), he ? 'סוכר כל שעה (תוך שעה מההגעה)' : 'hourly glucose (within the first hour)'], [labQ, lg.find(e => ['vbg', 'chem'].includes(e.id) && e.p.freq && e.p.freq <= 4), he ? 'גזים/אלקטרוליטים כל 2–4 שעות (תוך שעתיים)' : 'gas/electrolytes every 2–4 h (within 2 h)'], [neuQ, lg.find(e => e.id === 'neuro'), he ? 'אומדן נוירולוגי (תוך שעה)' : 'neuro checks (within the first hour)'], [did('io'), null, he ? 'מאזן נוזלים' : 'fluid balance']].filter(x => !x[0]).map(x => x[1] ? `${x[2]} — ${he ? 'באיחור' : 'late'}, ${at(x[1].t)}` : `${x[2]} — ${he ? 'חסר' : 'missing'}`);
+      why(late.length ? late.join('; ') : 'All standing orders in time.', late.length ? late.join('; ') : 'כל ההוראות הקבועות נרשמו בזמן.'); }
     add('nobicarb', 4, !did('bicarb'), 'No bicarbonate: it raises the risk of hypokalemia and cerebral edema.', 'ללא ביקרבונט: מעלה סיכון להיפוקלמיה ולבצקת מוחית.', 'nelson');
     { const b = lg.find(e => e.id === 'bicarb'); if (b) why(`Bicarbonate ${b.p.meqkg} mEq/kg at ${at(b.t)}.`, `ביקרבונט ${b.p.meqkg} מא״ק/ק״ג ב-${at(b.t)}.`); }
     const poE = lg.find(e => e.id === 'po');
@@ -733,18 +744,18 @@
     why(`PICU requested: ${at(T('picu'))}; target within 2 h.`, `בקשה לטיפול נמרץ: ${at(T('picu'))}; יעד תוך שעתיים.`);
     const osmEarly = S.ceCritAt == null && S.ceSignAt != null && lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= S.ceSignAt);
     if (S.ceCritAt != null || osmEarly) {
-      const c0 = S.ceCritAt ?? osmEarly.t, osm = lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= c0 - 30 && e.t <= c0 + 30);
+      const c0 = S.ceCritAt ?? S.ceSignAt, osm30 = lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= c0 - 30 && e.t <= c0 + 30), osm = osm30 || lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t > c0 + 30 && e.t <= c0 + 60);
       const before = mainAt(c0 - 1), cut = before && lg.find(e => e.id === 'main' && e.t >= c0 - 30 && e.t <= c0 + 45 && e.p.rate <= before.rate * 0.75);
-      const part = (osm ? 0.55 : 0) + (cut ? 0.15 : 0) + (m.headUp && T('headUp') <= c0 + 45 ? 0.1 : 0) + (lg.some(e => e.id === 'insDrip' && e.t >= c0 - 30 && e.t <= c0 + 60 && e.p.dose <= 0.03) ? 0.1 : 0) + (S.att.some(a => a >= c0 - 30 && a <= c0 + 45) ? 0.1 : 0);
+      const part = (osm30 ? 0.55 : osm ? 0.3 : 0) + (cut ? 0.15 : 0) + (m.headUp && T('headUp') <= c0 + 45 ? 0.1 : 0) + (lg.some(e => e.id === 'insDrip' && e.t >= c0 - 30 && e.t <= c0 + 60 && e.p.dose <= 0.03) ? 0.1 : 0) + (S.att.some(a => a >= c0 - 30 && a <= c0 + 45) ? 0.1 : 0);
       add('ce', 11, null, 'Cerebral edema (headache, vomiting, heart rate falling >20, drowsy): within 30 min mannitol 0.5–1 g/kg over 20 min (or NaCl 3% 5–10 mL/kg), cut fluids by a third, head up 30°, insulin 0.025 units/kg/h, call the attending; CT only after stabilizing.', 'בצקת מוחית (כאב ראש, הקאה, ירידת דופק מעל 20, ישנוניות): תוך 30 דקות מניטול 0.5–1 גר׳/ק״ג במשך 20 דקות (או NaCl 3% 5–10 מ״ל/ק״ג), הורדת נוזלים בשליש, ראש 30°, אינסולין 0.025 יח׳/ק״ג/שע׳, שיחה לכונן; CT רק אחרי ייצוב.', 'prot', part);
       { const os = lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= c0 - 30); why(`Alarm ${at(c0)}: osmotherapy ${os ? `${Math.round(os.t - c0)} min later` : 'not given'}${cut ? '' : '; fluids not cut by a third'}${lg.some(e => e.id === 'insDrip' && e.t >= c0 - 30 && e.t <= c0 + 60 && e.p.dose <= 0.03) ? '' : '; insulin not lowered to 0.025'}${S.att.some(a => a >= c0 - 30 && a <= c0 + 45) ? '' : '; attending not called'}.`, `התראה ${at(c0)}: טיפול אוסמוטי ${os ? `אחרי ${Math.round(os.t - c0)} דק׳` : 'לא ניתן'}${cut ? '' : '; הנוזלים לא הופחתו בשליש'}${lg.some(e => e.id === 'insDrip' && e.t >= c0 - 30 && e.t <= c0 + 60 && e.p.dose <= 0.03) ? '' : '; האינסולין לא הופחת ל-0.025'}${S.att.some(a => a >= c0 - 30 && a <= c0 + 45) ? '' : '; לא הייתה שיחה לכונן'}.`); }
     }
     const sc = lg.find(e => e.id === 'scRapid'), clock = t => (C.startClock + t) % 1440;
-    const mealOk = sc && S.flags.poAt != null && S.flags.poAt >= sc.t - 15;
+    const mealOk = sc && S.flags.poAt != null && S.flags.poAt >= sc.t - 5 && S.flags.poAt <= sc.t + 45;
     const exitOk = mealOk && res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) && S.flags.po && lg.some(e => (e.id === 'stopDrip' || (e.id === 'stop' && e.p.k === 'insDrip')) && e.t >= sc.t - 5 && e.t <= sc.t + 60) && !(clock(sc.t) >= 23 * 60 || clock(sc.t) < 6 * 60);
     add('exit', 6, !!exitOk, 'Leaving DKA: pH above 7.3 and HCO₃ above 18, eating without nausea; rapid insulin SC right before a meal, then stop the drip. Not in the middle of the night.', 'יציאה מ-DKA: pH מעל 7.3 ו-HCO₃ מעל 18, אוכל בלי בחילה; אינסולין מהיר תת-עורי מיד לפני ארוחה, ואז להפסיק את העירוי. לא באמצע הלילה.', 'prot');
-    if (sc && S.flags.poAt != null && S.flags.poAt < sc.t - 15) R[R.length - 1].why += he ? ` הוא אכל ב-${at(S.flags.poAt)}, לפני האינסולין: האינסולין המהיר ניתן מיד לפני הארוחה.` : ` He ate at ${at(S.flags.poAt)}, before the insulin: rapid insulin goes right before the meal.`;
     why(sc ? `Rapid SC insulin ${at(sc.t)}${S.flags.po ? '' : '; he did not eat'}${!res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) ? '; no gas showing pH > 7.3 and HCO₃ > 18 before it' : ''}.` : 'He never left DKA care (no SC insulin before a meal).', sc ? `אינסולין מהיר תת-עורי ${at(sc.t)}${S.flags.po ? '' : '; לא אכל'}${!res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) ? '; לא היה גז עם pH מעל 7.3 ו-HCO₃ מעל 18 לפני כן' : ''}.` : 'לא הגיע ליציאה מ-DKA (אין אינסולין תת-עורי לפני ארוחה).');
+    if (sc && S.flags.poAt != null && !mealOk) R[R.length - 1].why += he ? ` הוא אכל ב-${at(S.flags.poAt)}, לפני האינסולין: האינסולין המהיר ניתן מיד לפני הארוחה.` : ` He ate at ${at(S.flags.poAt)}, before the insulin: rapid insulin goes right before the meal.`;
     const ceMin = m.hist.filter(h => h.ce > 0.35).length * 5;
     add('brain', 8, ceMin <= 60 && !(m.injury > 0) && !m.dead, `Neurological outcome: ${m.dead ? 'death' : m.injury > 0 ? 'lasting brain injury' : ceMin ? `signs of raised intracranial pressure for about ${ceMin} min` : 'no lasting signs of raised intracranial pressure'}.`, `תוצאה נוירולוגית: ${m.dead ? 'מוות' : m.injury > 0 ? 'נזק מוחי מתמשך' : ceMin ? `סימני לחץ תוך-גולגולתי מוגבר במשך כ-${ceMin} דק׳` : 'ללא סימנים ממושכים של לחץ תוך-גולגולתי מוגבר'}.`, 'prot');
     why(m.dead ? `He died of cerebral herniation at ${at(m.deadAt)}.` : m.injury > 0 ? `Lasting brain injury (${m.hypoMin ? `${m.hypoMin} min of glucose < 40` : 'herniation'}).` : `Signs of raised pressure for ${ceMin} min.`, m.dead ? `נפטר מהרניאציה מוחית ב-${at(m.deadAt)}.` : m.injury > 0 ? `נזק מוחי מתמשך (${m.hypoMin ? `${m.hypoMin} דק׳ של סוכר מתחת ל-40` : 'הרניאציה'}).` : `סימני לחץ תוך-גולגלתי במשך ${ceMin} דק׳.`);
@@ -771,10 +782,10 @@
     S.ended = true; S.speed = 0; stopLoop(); $$('.scrim').forEach(x => x.remove());
     const { R, pct } = rubric(), SRC = C.src;
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
-      <div class="score"><b>${pct}%</b><span>${esc(L.survived)}: ${S.m.dead ? '✗' : '✓'} · ${esc(dur(S.m.t))}</span></div>
+      <div class="score"><b>${pct}%</b><span>${esc(L.survived)}: ${S.m.dead ? '✗' : '✓'} · +${esc(dur(S.m.t))}</span></div>
       <h3>${esc(L.rubric)}</h3><ul class="rub">${R.map(r => `<li class="${r.ok ? 'ok' : r.got > 0 ? 'part' : 'bad'}"><span class="mk">${r.ok ? '✓' : r.got > 0 ? '◐' : '✗'}</span><span>${esc(r.txt)}${r.why && !r.ok ? `<em class="why">${esc(r.why)}</em>` : ''} <small>${esc((SRC[r.src] || {})[LANG] || '')}</small></span></li>`).join('')}</ul>
       <h3>${esc(L.charts)}</h3><div class="charts">${chart('G', L.flow.G, 150, 250, '#ffd84a')}${chart('K', L.flow.K, 4, 5, '#3ef08f')}${chart('pH', 'pH', 7.3, 7.45, '#4fc3ff')}${chart('NaC', L.flow.NaC, 135, 145, '#ff8a4c')}${chart('eOsm', L.flow.eOsm, 280, 300, '#c39bff')}${chart('GCS', 'GCS', 14, 15, '#ff6b7a')}</div>
-      <div class="row"><button class="btn primary" data-again>${esc(L.again)}</button><button class="btn ghost" data-home2>${esc(L.home)}</button></div>`, 'wide');
+      <div class="row"><button class="btn primary" data-again>${esc(L.again)}</button><button class="btn ghost" data-home2>${esc(L.home)}</button><button class="btn ghost" data-lang>${esc(L.lang)}</button></div>`, 'wide');
     md.el.addEventListener('click', e => { if (e.target.closest('[data-again]')) { md.close(); startCase(); } else if (e.target.closest('[data-home2]')) { md.close(); home(); } });
   }
 
