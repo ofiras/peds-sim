@@ -18,7 +18,12 @@ window.CASE_DKA = {
       lp: 'Why an LP? Nothing points to meningitis, and in DKA with a risk of cerebral edema a lumbar puncture can cause herniation. Do not do it.',
       cvc: 'A central line is not needed here: two good peripheral lines are enough, and DKA raises the risk of line-related thrombosis.',
       prbc: 'Hemoglobin is 15 and nothing is bleeding: there is no indication for blood.', ffp: 'No bleeding and no coagulopathy: there is no indication for plasma.', plt: 'Platelets are normal: there is no indication for a platelet transfusion.',
+      ward: 'pH below 7.1 is severe DKA: he goes to the PICU, not the ward.',
       intub: 'Do not intubate him for the acidosis: his deep breathing is compensating, and after intubation the pH falls further unless you match that ventilation. Intubate only for airway protection.'
+    },
+    consult: {
+      endo: { min: 30, text: 'Pediatric endocrinology: new-onset type 1 diabetes in DKA. Continue the DKA protocol; we will see him in the morning to start subcutaneous insulin and teaching. Please send the diabetes work-up (antibodies, insulin/C-peptide, HbA1c, thyroid function, celiac serology) before insulin is long running.' },
+      surg: { min: 45, text: 'Pediatric surgery: soft abdomen with mild diffuse tenderness, no peritoneal signs. The pain fits DKA; no imaging needed now. Re-examine if it persists after the acidosis is corrected.' }
     }
   },
   he: {
@@ -33,7 +38,12 @@ window.CASE_DKA = {
       lp: 'למה ניקור מותני? שום דבר לא מצביע על דלקת קרום המוח, וב-DKA עם סיכון לבצקת מוחית ניקור מותני עלול לגרום להרניאציה. לא לבצע.',
       cvc: 'אין צורך בצנתר מרכזי: שני עירויים פריפריים טובים מספיקים, ו-DKA מעלה את הסיכון לפקקת סביב צנתר.',
       prbc: 'ההמוגלובין 15 ואין דימום: אין התוויה למתן דם.', ffp: 'אין דימום ואין הפרעת קרישה: אין התוויה לפלזמה.', plt: 'הטסיות תקינות: אין התוויה למתן טסיות.',
+      ward: 'pH מתחת ל-7.1 זה DKA קשה: הוא עובר לטיפול נמרץ, לא למחלקה.',
       intub: 'אל תנשימו אותו בגלל החמצת: הנשימה העמוקה מפצה, ואחרי אינטובציה ה-pH יורד עוד אם לא מתאימים את ההנשמה. אינטובציה רק להגנה על נתיב האוויר.'
+    },
+    consult: {
+      endo: { min: 30, text: 'אנדוקרינולוגיה ילדים: סוכרת סוג 1 חדשה בהצגת DKA. ממשיכים לפי פרוטוקול DKA; נראה אותו בבוקר להתחלת אינסולין תת-עורי והדרכה. לשלוח בירור סוכרת (נוגדנים, אינסולין/C-peptide, HbA1c, תפקודי תריס, סרולוגיה לצליאק) כמה שיותר מוקדם.' },
+      surg: { min: 45, text: 'כירורגיית ילדים: בטן רכה עם רגישות מפושטת קלה, ללא סימני גירוי צפקי. הכאב מתאים ל-DKA; אין צורך בהדמיה כרגע. לבדוק שוב אם נמשך אחרי תיקון החמצת.' }
     }
   },
   /* sources shown in the debrief */

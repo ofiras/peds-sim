@@ -5,7 +5,7 @@ window.I18N = {
     start: 'Start', back: 'Back', lang: 'עברית', level: 'Level', guided: 'Guided', indep: 'Independent',
     guidedD: 'Calculation helpers in the order forms and a hint when a critical result arrives.', indepD: 'No helpers: calculate rates and doses yourself, like on shift.',
     caseFile: 'Case', triage: 'Triage', history: 'History', exam: 'Examination',
-    clock: 'Time', since: 'Since arrival', paused: 'Paused', play: 'Run', next: 'Next hour', loc: { ED: 'ED', PICU: 'PICU' },
+    clock: 'Time', gasChip: 'Gas', labChip: 'Labs', since: 'Since arrival', paused: 'Paused', play: 'Run', next: 'Next hour', loc: { ED: 'ED', PICU: 'PICU' },
     monitor: 'Monitor', orders: 'Orders', results: 'Results', nurse: 'Nurse & events', patient: 'Patient',
     noMon: 'Not connected', attachHint: 'Order a cardiac monitor', active: 'Active orders', none: 'None yet',
     tabs: { care: 'Care', labs: 'Labs', fluids: 'Fluids', insulin: 'Insulin', meds: 'Drugs' },
@@ -27,10 +27,10 @@ window.I18N = {
       ins: (u, ml) => `= ${u} units/h · ${ml} mL/h of 10 units in 100 mL`,
       man: ml => `= ${ml} mL of mannitol 20%`, hts: ml => `= ${ml} mL`, bol: ml => `= ${ml} mL`
     },
-    nurseSays: 'Nurse', attSays: 'Attending', lab: 'Result', sys: 'Note',
+    nurseSays: 'Nurse', labSent: n => `${n}: drawn and sent to the lab.`, imgOrdered: n => `${n}: ordered.`, consSays: 'Consultant', objCancel: 'Cancel the order', objGo: 'Do it anyway', objDropped: n => `${n}: cancelled after the attending's advice.`, consCalled: (n, m) => `${n}: paged; they will call back in about ${m} min.`, attSays: 'Attending', lab: 'Result', sys: 'Note',
     msgs: {
       weighed: w => `Weight now: ${w} kg (35 kg two months ago).`, ivIn: 'Two IV lines in. Bloods can be drawn from the line.', noIV: 'There is no IV access yet.',
-      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', picuIn: 'He is in the PICU now.',
+      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', wardReq: 'Transfer to the ward requested.', picuIn: 'He is in the PICU now.',
       thirsty: 'He says he is very thirsty and asks for water.', headache: 'He complains of a headache and vomited again.', hrDrop: hr => `Heart rate fell to ${hr} and he is harder to wake.`,
       pupils: 'Pupils are sluggish and his breathing is irregular!', kLow: 'On the monitor: flat T waves and U waves.', kHigh: 'On the monitor: tall peaked T waves.',
       hypo: g => `He is sweaty and confused. Capillary glucose ${g} mg/dL.`, lowUO: 'Urine output has been low for two hours.', breakfast: 'It is morning; breakfast has arrived and he is hungry.',
@@ -55,7 +55,7 @@ window.I18N = {
     start: 'התחלה', back: 'חזרה', lang: 'English', level: 'רמה', guided: 'מודרך', indep: 'עצמאי',
     guidedD: 'עזרי חישוב בטפסי ההוראות ורמז כשמגיעה תוצאה קריטית.', indepD: 'בלי עזרים: מחשבים קצבים ומינונים לבד, כמו במשמרת.',
     caseFile: 'המקרה', triage: 'טריאז׳', history: 'אנמנזה', exam: 'בדיקה',
-    clock: 'שעה', since: 'מאז ההגעה', paused: 'עצור', play: 'הפעלה', next: 'שעה קדימה', loc: { ED: 'מיון', PICU: 'טיפול נמרץ' },
+    clock: 'שעה', gasChip: 'גזים', labChip: 'מעבדה', since: 'מאז ההגעה', paused: 'עצור', play: 'הפעלה', next: 'שעה קדימה', loc: { ED: 'מיון', PICU: 'טיפול נמרץ' },
     monitor: 'מוניטור', orders: 'הוראות', results: 'תוצאות', nurse: 'אחות ואירועים', patient: 'המטופל',
     noMon: 'לא מחובר', attachHint: 'הזמינו מוניטור', active: 'הוראות פעילות', none: 'אין עדיין',
     tabs: { care: 'טיפול', labs: 'מעבדה', fluids: 'נוזלים', insulin: 'אינסולין', meds: 'תרופות' },
@@ -77,10 +77,10 @@ window.I18N = {
       ins: (u, ml) => `= ${u} יח׳/שע׳ · ${ml} מ״ל/שע׳ של 10 יח׳ ב-100 מ״ל`,
       man: ml => `= ${ml} מ״ל מניטול 20%`, hts: ml => `= ${ml} מ״ל`, bol: ml => `= ${ml} מ״ל`
     },
-    nurseSays: 'אחות', attSays: 'כונן', lab: 'תוצאה', sys: 'הערה',
+    nurseSays: 'אחות', labSent: n => `${n}: נלקח ונשלח למעבדה.`, imgOrdered: n => `${n}: הוזמן.`, consSays: 'יועץ', objCancel: 'ביטול ההוראה', objGo: 'לבצע בכל זאת', objDropped: n => `${n}: בוטל בעקבות הכונן.`, consCalled: (n, m) => `${n}: הוזנק; יחזרו אליכם בעוד כ-${m} דקות.`, attSays: 'כונן', lab: 'תוצאה', sys: 'הערה',
     msgs: {
       weighed: w => `משקל כעת: ${w} ק״ג (35 ק״ג לפני חודשיים).`, ivIn: 'הוכנסו שני עירויים. אפשר לקחת דמים מהעירוי.', noIV: 'אין עדיין גישה ורידית.',
-      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', picuIn: 'הוא כעת בטיפול נמרץ.',
+      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', wardReq: 'התבקשה העברה למחלקה.', picuIn: 'הוא כעת בטיפול נמרץ.',
       thirsty: 'הוא אומר שהוא צמא מאוד ומבקש מים.', headache: 'הוא מתלונן על כאב ראש והקיא שוב.', hrDrop: hr => `הדופק ירד ל-${hr} וקשה יותר להעיר אותו.`,
       pupils: 'האישונים מגיבים באיטיות והנשימה לא סדירה!', kLow: 'במוניטור: גלי T שטוחים וגלי U.', kHigh: 'במוניטור: גלי T גבוהים ומחודדים.',
       hypo: g => `הוא מזיע ומבולבל. סוכר קפילרי ${g} מ״ג/ד״ל.`, lowUO: 'תפוקת השתן נמוכה כבר שעתיים.', breakfast: 'בוקר; ארוחת הבוקר הגיעה והוא רעב.',

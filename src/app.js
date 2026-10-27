@@ -111,6 +111,8 @@
   const oname = id => L.o[id] || EXTRA[LANG][id] || id;
   /* minutes until the result is back; bedside tests (glucometer, ketone meter, ECG) are immediate */
   /* procedures: who does them and how many minutes they take */
+  const ONCE = ['monitor', 'npo', 'headUp', 'picu', 'ward', 'endo', 'surg'];
+  const onceDone = id => id === 'monitor' ? S.flags.mon : id === 'headUp' ? S.m.headUp : S.flags[id];
   const PROC = { iv: { by: 'nurse', min: 5 }, io_access: { by: 'md', min: 2, flag: 'io' }, ngt: { by: 'nurse', min: 5 }, foley: { by: 'nurse', min: 5 }, aline: { by: 'md', min: 15 }, cvc: { by: 'md', min: 20 }, lp: { by: 'md', min: 15 }, intub: { by: 'md', min: 10, flag: 'intubated' } };
   const LAB_DELAY = { poc: 0, vbg: 10, abg: 10, chem: 40, bhb: 0, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 0, dmw: 2880, cxr: 30, usabd: 60, ct: 40 };
   /* invasive or costly orders this case does not need: shown in the debrief as unnecessary */
@@ -141,7 +143,7 @@
 
   /* ---------------- session ---------------- */
   function startCase() {
-    S = { m: M.create(C.model), procs: {}, log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
+    S = { m: M.create(C.model), procs: {}, later: [], log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
     msg('sys', CT().triage);
     renderSim(); loop();
     S.speed = 1; renderClock();   // the clock runs from arrival and never stops
@@ -161,6 +163,20 @@
     if (S.ended) return;
     const m = S.m, w = m.wt, needIV = ['bolus', 'main', 'insDrip', 'insBolus', 'mannitol', 'hts', 'bicarb', 'kphos', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin', 'cagluc', 'ondan', 'paracet', 'morphine', 'midaz', 'ceftriax'];
     if (needIV.includes(id) && !S.flags.iv && !S.flags.io) { msg('nurse', L.msgs.noIV); return; }
+    /* the attending objects to harmful orders before anything happens: cancel (logged, half the penalty) or insist */
+    const W = CT().warn || {}, wk = id === 'intub' ? (m.ce < 0.55 ? 'intub' : null) : id;
+    if (wk && W[wk] && !p.force) {
+      if (ONCE.includes(id) && onceDone(id)) { msg('sys', L.already(oname(id))); return; }
+      if ((PROC[id] && (S.flags[PROC[id].flag || id] || S.procs[id] != null))) { msg('sys', L.already(oname(id))); return; }
+      msg('att', W[wk], true);
+      const md = modal(`<span class="eyebrow">${esc(L.attSays)} · ${esc(oname(id))}</span><p class="objq">${esc(W[wk])}</p><div class="row"><button class="btn primary" data-cx>${esc(L.objCancel)}</button><button class="btn ghost" data-go>${esc(L.objGo)}</button></div>`);
+      md.el.addEventListener('click', e => {
+        if (e.target.closest('[data-go]')) { md.close(); order(id, Object.assign({}, p, { force: true })); }
+        else if (e.target.closest('[data-cx]')) { md.close(); S.log.push({ t: now(), id: 'objected', p: { k: id } }); msg('sys', L.objDropped(oname(id))); renderSitu(); }
+      });
+      return;
+    }
+    if (ONCE.includes(id) && onceDone(id)) { msg('sys', L.already(oname(id))); return; }
     /* procedures take time and are done once; physician procedures are yours, nursing ones the nurse's */
     const PR = PROC[id];
     if (PR) {
@@ -168,12 +184,9 @@
       S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)) });
       S.procs[id] = now() + PR.min;
       msg(PR.by === 'md' ? 'you' : 'nurse', PR.by === 'md' ? L.youStart(oname(id), PR.min) : L.nurseStart(oname(id), PR.min));
-      const W = CT().warn || {}, wk = id === 'intub' ? (m.ce < 0.55 ? 'intub' : null) : id;
-      if (wk && W[wk]) msg('att', W[wk], true);
       renderSitu(); return;
     }
     S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)) });
-    { const W = CT().warn || {}; if (W[id] && !['bicarb'].includes(id)) msg('att', W[id], true); }
     const MS = L.msgs;
     switch (id) {
       case 'historyQ': msg('sys', `${L.history}: ${CT().history}`); break;
@@ -182,13 +195,15 @@
       case 'monitor': S.flags.mon = true; msg('nurse', MS.monOn); break;
       case 'npo': S.flags.npo = true; msg('nurse', MS.npo); break;
       case 'headUp': m.headUp = true; msg('nurse', MS.headUp); break;
-      case 'neuro': case 'io': S.standing[id] = { every: 60, next: now() + 60 }; break;
+      case 'neuro': case 'io': S.standing[id] = { every: 60, next: now() + 60 }; msg('nurse', oname(id) + ' ✓'); break;
       case 'att': S.att.push(now()); msg('att', m.ce > 0.25 ? MS.attCE : p.ins ? MS.attIns : MS.attGen); break;
-      case 'picu': S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); break;
-      case 'ward': case 'endo': case 'surg': case 'o2': S.flags[id] = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
-      case 'ct': if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) { msg('att', MS.ctEarly); S.log[S.log.length - 1].early = true; } else addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
-      case 'cxr': addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'צילום חזה AP בשכיבה: שדות ריאה נקיים, ללא תסנינים או נוזל פלאורלי. צל לב בגודל תקין. ללא חזה אוויר. פענוח: צילום תקין.' : 'Supine AP chest: clear lung fields, no consolidation or effusion. Normal cardiac silhouette. No pneumothorax. Impression: normal study.' }); break;
-      case 'usabd': addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'US בטן: כבד, טחול וכליות תקינים. ללא נוזל חופשי. התוספתן לא הודגם; ללא סימנים עקיפים לדלקת. פענוח: ללא ממצא חריג.' : 'Abdominal ultrasound: normal liver, spleen and kidneys. No free fluid. Appendix not visualized; no secondary signs of inflammation. Impression: no abnormality.' }); break;
+      case 'picu': S.flags.picu = true; S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); break;
+      case 'endo': case 'surg': { S.flags[id] = true; const cs = (CT().consult || {})[id]; msg('sys', L.consCalled(oname(id), cs ? cs.min : 30)); if (cs) S.later.push({ t: now() + cs.min, kind: 'cons', text: cs.text }); break; }
+      case 'ward': S.flags.ward = true; msg('sys', MS.wardReq); break;
+      case 'o2': S.flags.o2 = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
+      case 'ct': if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) { msg('att', MS.ctEarly); S.log[S.log.length - 1].early = true; } else msg('nurse', L.imgOrdered(oname('ct'))), addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
+      case 'cxr': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'צילום חזה AP בשכיבה: שדות ריאה נקיים, ללא תסנינים או נוזל פלאורלי. צל לב בגודל תקין. ללא חזה אוויר. פענוח: צילום תקין.' : 'Supine AP chest: clear lung fields, no consolidation or effusion. Normal cardiac silhouette. No pneumothorax. Impression: normal study.' }); break;
+      case 'usabd': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'US בטן: כבד, טחול וכליות תקינים. ללא נוזל חופשי. התוספתן לא הודגם; ללא סימנים עקיפים לדלקת. פענוח: ללא ממצא חריג.' : 'Abdominal ultrasound: normal liver, spleen and kidneys. No free fluid. Appendix not visualized; no secondary signs of inflammation. Impression: no abnormality.' }); break;
       case 'bolus': m.inf.boluses.push({ fluid: p.fluid, left: p.mlkg * w, mlMin: p.mlkg * w / Math.max(5, p.over) }); msg('nurse', `${oname(id)}: ${L.fl[p.fluid]} ${Math.round(p.mlkg * w)} mL / ${p.over}′`); break;
       case 'main': m.inf.main = { base: p.base, dex: +p.dex, kcl: +p.kcl, rate: +p.rate }; S.mainHist = (S.mainHist || []).concat({ t: now(), rate: +p.rate }); msg('nurse', `${oname(id)}: ${L.fl[p.base]}${+p.dex ? ` + D${p.dex}%` : ''}${+p.kcl ? ` + KCl ${p.kcl}` : ''} · ${p.rate} mL/h`); break;
       case 'insDrip': m.inf.insulin = +p.dose; msg('nurse', `${oname(id)}: ${p.dose} u/kg/h = ${r1(p.dose * w)} u/h`); break;
@@ -211,8 +226,8 @@
       case 'po': S.flags.po = true; if (m.pH > 7.3 && m.HCO3 > 18) msg('nurse', MS.po); else { msg('nurse', MS.poEarly); m.ceRisk += 0.3; } break;
       default:
         if (LABS.includes(id)) {
-          if (p.freq && +p.freq) S.standing[id] = { every: p.freq * 60, next: now() };
-          else drawLab(id);
+          if (p.freq && +p.freq) { S.standing[id] = { every: p.freq * 60, next: now() }; msg('nurse', `${oname(id)}: ${L.every(+p.freq)}`); }
+          else { if (LAB_DELAY[id]) msg('nurse', (['cxr', 'usabd', 'ct'].includes(id) ? L.imgOrdered : L.labSent)(oname(id))); drawLab(id); }
         } else msg('nurse', oname(id) + ' ✓');
     }
     renderSitu(); renderFlow(); renderStatus();
@@ -240,7 +255,7 @@
     else if (id === 'ua') v = { txt: he ? 'צפיפות 1.030 · pH 5.0 · גלוקוז 4+ · קטונים 3+ · חלבון שלילי · דם שלילי · לויקוציטים שלילי · ניטריטים שלילי. תרבית: נשלחה.' : 'SG 1.030 · pH 5.0 · glucose 4+ · ketones 3+ · protein neg · blood neg · leukocytes neg · nitrite neg. Culture: sent.' };
     addResult(id, now() + (LAB_DELAY[id] ?? 30), v, m.t);
   }
-  function addResult(kind, ready, v, drawn) { const r = { kind, drawn: drawn ?? now(), ready, v }; S.res.push(r); if (ready <= now()) { r.seen = true; r.at = now(); resultArrived(r); } }
+  function addResult(kind, ready, v, drawn) { const r = { kind, drawn: drawn ?? now(), ready, v }; S.res.push(r); renderChips(); if (ready <= now()) { r.seen = true; r.at = now(); resultArrived(r); } }
 
   /* ---------------- time loop ---------------- */
   function stopLoop() { clearInterval(timer); timer = null; }
@@ -257,6 +272,7 @@
   }
   function minute() {
     const m = S.m; M.step(m, 1); const t = m.t;
+    S.later = S.later.filter(x => { if (t >= x.t) { msg(x.kind, x.text); return false; } return true; });
     /* standing orders */
     Object.entries(S.standing).forEach(([k, o]) => {
       if (t < o.next) return; o.next += o.every;
@@ -275,7 +291,7 @@
   /* every result is announced; it also goes into the flow sheet */
   const RES_KEYS = ['G', 'pH', 'pCO2', 'HCO3', 'Na', 'K', 'Cl', 'AG', 'BUN', 'Cr', 'Ca', 'P', 'Mg', 'BHB', 'lact'];
   function resultArrived(r) {
-    renderFlow();
+    renderFlow(); renderChips();
     if (!r.v || r.kind === 'neuro' || r.kind === 'io') return;
     const ix = S.res.indexOf(r), short = r.kind === 'ecg' ? RV.ecgText(r.v, LANG === 'he').interp : r.v.txt != null ? '' : RES_KEYS.filter(k => r.v[k] != null).map(k => `${L.flow[k]} ${r.v[k]}`).join(' · ');
     msg('lab', `${oname(r.kind)}${short ? ': ' + short : ` · ${L.ready}`}`, false, ix);
@@ -311,6 +327,8 @@
       <div class="ttl"><b>${esc(CT().title)}</b><span><i class="lvtag lv${LEVEL === 'guided' ? 1 : 3}">${esc(L[LEVEL])}</i> ${esc(m.age)}${he ? ' שנים' : 'y'} · <span id="ttlWt">${S.flags.weighed ? m.wt : '?'}</span> ${he ? 'ק״ג' : 'kg'} · <span id="loc"></span></span></div>
       <div class="clock"><small>${esc(L.since)}</small><b id="since">0:00</b></div>
       <div class="clock"><small>${esc(L.clock)}</small><b id="clk"></b></div>
+      <button class="clock gasb" id="gasBox" data-gasv hidden><small>${esc(L.gasChip)}</small><b id="gasV">pH</b></button>
+      <button class="clock gasb" id="labBox" data-labv hidden><small>${esc(L.labChip)}</small><b id="labV">0</b></button>
       <div class="speed" role="group" aria-label="${esc(L.speed)}">${[1, 5, 15].map(x => `<button class="sp" data-sp="${x}" title="${esc(L.perSec(x))}">▶${x > 1 ? '×' + x : ''}</button>`).join('')}</div>
       <button class="iconbtn" data-snd aria-label="${esc(L.sound)}">${UI.sound ? '🔊' : '🔇'}</button>
       <button class="btn ghost sm" data-lang>${esc(L.lang)}</button><button class="btn ghost sm" data-end>${esc(L.endCase)}</button>
@@ -390,7 +408,9 @@
     if (e.target.closest('[data-home]')) { home(); return; }
     if (e.target.closest('[data-end]')) { const md = modal(`<p>${esc(L.endQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = ev => { if (ev.target.closest('[data-y]')) { md.close(); endCase(); } else if (ev.target.closest('[data-n]')) md.close(); }; return; }
     const st = e.target.closest('[data-stop]'); if (st) { stopOrder(st.dataset.stop); return; }
-    const rs = e.target.closest('[data-res]'); if (rs) { showResult(S.res[+rs.dataset.res]); return; }
+    const rs = e.target.closest('[data-res]'); if (rs) { const r = S.res[+rs.dataset.res]; GAS_KINDS.includes(r.kind) ? gasView(gases().indexOf(r)) : showResult(r); return; }
+    if (e.target.closest('[data-gasv]')) { gasView(); return; }
+    if (e.target.closest('[data-labv]')) { labList(); return; }
     const ob = e.target.closest('[data-o]'); if (ob) openForm(ob.dataset.o, ob);
   }
   function renderClock() {
@@ -401,7 +421,35 @@
     const lc = $('#loc'); if (lc) lc.textContent = L.loc[S.flags.loc];
     const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : L.bedED;
     const mc = $('#mClk'); if (mc) mc.textContent = hhmm(C.startClock + now());
+    renderChips();
   }
+  /* top-bar chips: the latest blood gas, and the lab results (ready / ordered); they light up while something new is unread */
+  const GAS_KINDS = ['vbg', 'abg'], NOT_LAB = ['vbg', 'abg', 'neuro', 'io'];
+  const gases = () => S.res.filter(r => GAS_KINDS.includes(r.kind) && r.ready <= now());
+  const labs = () => S.res.filter(r => !NOT_LAB.includes(r.kind) && r.v);
+  function renderChips() {
+    const gb = $('#gasBox'), lb = $('#labBox'); if (!gb || !lb) return;
+    const g = gases(), l = labs(), lr = l.filter(r => r.ready <= now());
+    gb.hidden = !g.length; lb.hidden = !l.length;
+    if (g.length) { $('#gasV').textContent = (+g[g.length - 1].v.pH).toFixed(2); gb.classList.toggle('new', g.some(r => !r.viewed)); }
+    if (l.length) { $('#labV').textContent = `${lr.length}/${l.length}`; lb.classList.toggle('new', lr.some(r => !r.viewed)); }
+  }
+  /* the results list, like the hospital system: every test ordered, newest first; ready ones open */
+  function labList() {
+    const he = LANG === 'he', t = now(), l = labs().slice().sort((a, b) => b.drawn - a.drawn || b.ready - a.ready);
+    const rows = l.map(r => {
+      const ok = r.ready <= t, ab = ok && r.kind !== 'ecg' && !r.v.txt && RV.abnormal && RV.abnormal(r.kind, r.v);
+      return `<tr class="${ok ? 'go' : 'pend'}${ok && !r.viewed ? ' unread' : ''}" ${ok ? `data-ri="${S.res.indexOf(r)}"` : ''}><td class="num">${hhmm(C.startClock + r.drawn)}</td><td>${esc(oname(r.kind))}</td><td>${ok ? (he ? 'סופי' : 'Final') + (ab ? ` <b class="abn">${he ? 'חריג' : 'Abnormal'}</b>` : '') : (he ? 'בתהליך' : 'Pending') + (r.ready - t <= 360 ? ` · ${hhmm(C.startClock + r.ready)}` : '')}</td></tr>`;
+    }).join('');
+    const md = modal(`<div class="emr"><div class="emr-h"><b>${he ? 'תוצאות מעבדה' : 'Laboratory results'}</b><span>${he ? 'ילד' : 'Boy'}, ${S.m.age}${he ? ' ש׳' : 'y'}</span></div>
+      <table class="emr-list"><thead><tr><th>${he ? 'נלקח' : 'Drawn'}</th><th>${he ? 'בדיקה' : 'Test'}</th><th>${he ? 'סטטוס' : 'Status'}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, 'wide');
+    md.el.addEventListener('click', e => {
+      const tr = e.target.closest('[data-ri]'); if (tr) { md.close(); showResult(S.res[+tr.dataset.ri], { back: labList }); return; }
+      if (e.target.closest('[data-x]') || e.target === md.el) md.close();
+    });
+  }
+  function gasView(i) { const g = gases(); if (!g.length) return; i = i ?? g.length - 1; showResult(g[i], { nav: [i, g.length, gasView] }); }
   /* non-invasive BP: measures every 15 minutes of case time and on demand; the cuff cycle runs in real seconds */
   function nbpStart() { const n = S.nbp; n.busy = true; n.t0 = performance.now(); n.peak = Math.round(S.m.SBP + 30); n.step = 0; UI.Sound.cuffPump(3); }
   function nbpTick() {
@@ -465,7 +513,7 @@
     if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} u/kg/h (${r1(m.inf.insulin * m.wt)} u/h)`]);
     m.inf.boluses.filter(b => b.left > 0).forEach(b => rows.push([null, `${oname('bolus')}: ${L.fl[b.fluid]} · ${Math.round(b.left)} mL`]));
     Object.entries(S.standing).forEach(([k, o]) => rows.push([k, `${oname(k)} · ${L.every(o.every / 60)}`]));
-    const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays };
+    const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays, cons: L.consSays };
     el.innerHTML = `<div class="hd"><span class="eyebrow">${esc(L.latest)} · ${last ? hhmm(C.startClock + last.t) : ''}</span></div>
       ${last ? `<div class="fb ${last.crit ? 'bad' : last.kind === 'att' ? 'ok' : 'note'}"><b>${esc(who[last.kind])}</b><span>${esc(last.text)}</span>${last.res != null ? `<span><button class="btn sm" data-res="${last.res}">${esc(L.view)}</button></span>` : ''}</div>` : ''}
       <div class="actl"><span class="eyebrow">${esc(L.active)}</span>${rows.length ? rows.map(([k, txt]) => `<div class="act"><span>${esc(txt)}</span>${k ? `<button class="btn sm ghost" data-stop="${k}">${esc(L.stop)}</button>` : ''}</div>`).join('') : `<p class="muted">${esc(L.none)}</p>`}</div>`;
@@ -506,16 +554,22 @@
     md.el.addEventListener('click', e => { if (e.target.closest('[data-x]')) md.close(); });
     const first = $('input,select', f); if (first) first.focus();
   }
-  function showResult(r) {
+  function showResult(r, o = {}) {
     if (!r || r.ready > now()) return;
+    r.viewed = true; renderChips();
     const he = LANG === 'he', d = new Date(), ctx = { he, pt: `${he ? 'ילד' : 'Boy'}, ${S.m.age}${he ? ' ש׳' : 'y'}${S.flags.weighed ? ' · ' + S.m.wt + ' kg' : ''}`, date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, time: hhmm(C.startClock + r.drawn), ready: hhmm(C.startClock + r.ready), seed: r.drawn, arterial: r.v.arterial };
     let body, cls = 'wide';
     if (r.kind === 'ecg') { const tx = RV.ecgText(r.v, he); body = `<span class="eyebrow">${esc(oname('ecg'))} · ${ctx.time}</span><div class="ecghd" dir="ltr"><b>${esc(tx.head)}</b><span>${esc(tx.interp)}</span><small>${esc(tx.note)}</small></div><div class="ecgpaper"><canvas id="ecgc"></canvas></div><p class="muted small" dir="ltr">25 mm/s · 10 mm/mV · 0.05–150 Hz</p>`; }
     else if (r.kind === 'vbg' || r.kind === 'abg') { body = RV.gasSlip(r.v, ctx); cls = 'gasp'; }
     else if (r.kind === 'poc' || r.kind === 'bhb') { body = `<span class="eyebrow">${esc(oname(r.kind))} · ${ctx.time}</span>${RV.meter(r.kind, r.v, he)}`; cls = 'meterw'; }
     else body = RV.report(r.kind, r.v, ctx);
-    const md = modal(`${body}<div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, cls);
-    md.el.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target === md.el) md.close(); });
+    const nv = o.nav, prevNext = nv && nv[1] > 1 ? `<button class="btn ghost" data-nv="${nv[0] - 1}"${nv[0] ? '' : ' disabled'}>${he ? '→ קודם' : '← Earlier'}</button><span class="nvc">${nv[0] + 1} / ${nv[1]}</span><button class="btn ghost" data-nv="${nv[0] + 1}"${nv[0] < nv[1] - 1 ? '' : ' disabled'}>${he ? 'הבא ←' : 'Later →'}</button>` : '';
+    const md = modal(`${body}<div class="row">${prevNext}${o.back ? `<button class="btn ghost" data-bk>${he ? 'לרשימה' : 'All results'}</button>` : ''}<button class="btn primary" data-x>${esc(L.back)}</button></div>`, cls);
+    md.el.addEventListener('click', e => {
+      const n = e.target.closest('[data-nv]'); if (n && !n.disabled) { md.close(); nv[2](+n.dataset.nv); return; }
+      if (e.target.closest('[data-bk]')) { md.close(); o.back(); return; }
+      if (e.target.closest('[data-x]') || e.target === md.el) md.close();
+    });
     if (r.kind === 'ecg') { const draw = () => { const cv = $('#ecgc', md.el); if (cv && cv.isConnected && RV.ecg12(cv, r.v) === false) setTimeout(draw, 200); }; requestAnimationFrame(draw); }
   }
   function flash(btn) { if (!btn) return; btn.classList.add('flashok'); setTimeout(() => btn.classList.remove('flashok'), 500); UI.Sound.ok && UI.Sound.ok(); }
@@ -539,7 +593,7 @@
   }
   function renderFeed() {
     const el = $('#recL'); if (!el || !S) return;
-    const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays };
+    const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays, cons: L.consSays };
     el.innerHTML = S.msgs.slice().reverse().map(x => `<li class="${x.crit ? 'bad' : ''}"><span>${hhmm(C.startClock + x.t)}</span><span><b>${esc(who[x.kind])}</b> · ${esc(x.text)}${x.res != null ? ` <button class="rlink" data-res="${x.res}">${esc(L.view)}</button>` : ''}</span></li>`).join('');
     const ln = $('#logN'); if (ln) ln.textContent = S.msgs.length;
     renderSitu();
@@ -610,8 +664,10 @@
     const ceMin = m.hist.filter(h => h.ce > 0.35).length * 5;
     add('brain', 8, ceMin <= 60, `Neurological outcome: ${ceMin ? `signs of raised intracranial pressure for about ${dur(ceMin)} h` : 'no lasting signs of raised intracranial pressure'}.`, `תוצאה נוירולוגית: ${ceMin ? `סימני לחץ תוך-גולגולתי מוגבר במשך כ-${dur(ceMin)} שע׳` : 'ללא סימנים ממושכים של לחץ תוך-גולגולתי מוגבר'}.`, 'prot');
     const extra = lg.filter(e => UNNEEDED[e.id] != null).map(e => e.id), pen = [...new Set(extra)].reduce((a, k) => a + UNNEEDED[k], 0);
+    const stopped = [...new Set(lg.filter(e => e.id === 'objected' && !extra.includes(e.p.k)).map(e => e.p.k))], pen2 = stopped.reduce((a, k) => a + Math.ceil((UNNEEDED[k] || 2) / 2), 0);
+    if (stopped.length) add('stopped', 0, false, `The attending stopped: ${stopped.map(oname).join(', ')} (−${pen2}). Think it through before ordering.`, `הכונן עצר: ${stopped.map(oname).join(', ')} (מינוס ${pen2}). לחשוב לפני שמזמינים.`, 'nelson');
     if (extra.length) add('extra', 0, false, `Unnecessary interventions: ${[...new Set(extra)].map(oname).join(', ')} (−${pen}).`, `התערבויות מיותרות: ${[...new Set(extra)].map(oname).join(', ')} (מינוס ${pen}).`, 'nelson');
-    const max = R.reduce((a, r) => a + r.wt, 0); let got = R.reduce((a, r) => a + r.got, 0) - pen;
+    const max = R.reduce((a, r) => a + r.wt, 0); let got = R.reduce((a, r) => a + r.got, 0) - pen - pen2;
     if (m.dead) got *= 0.3;
     return { R, pct: Math.max(0, Math.round(got / max * 100)) };
   }

@@ -1188,6 +1188,18 @@ svg.tl .tlbt{font-size:9px}svg.tl .tlbt.ok{fill:var(--good)}svg.tl .tlbt.bad{fil
 .emr td.num{font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:end;white-space:nowrap}
 .emr td.fl{font-weight:800;color:#c4161c;width:18px}
 .emr tr.abn td{color:#c4161c;font-weight:700}
+.clock.gasb{padding:3px 9px;min-height:44px;justify-content:center;position:relative}
+.clock.gasb b{font-size:20px}
+.clock.gasb.new{background:rgba(255,138,42,.14);animation:chipglow 1.6s ease-in-out infinite}
+.clock.gasb.new::after{content:'';position:absolute;top:-4px;inset-inline-end:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
+@keyframes chipglow{50%{box-shadow:0 0 0 3px rgba(255,138,42,.35)}}
+.emr-list tbody tr.go{cursor:pointer}
+.emr-list tbody tr.go:hover td{background:#eef4fb}
+.emr-list tr.unread td{font-weight:700}
+.emr-list tr.pend td{color:#7a8794;font-style:italic}
+.emr-list b.abn{color:#c4161c;font-size:12px;margin-inline-start:6px}
+.objq{font-size:16px;line-height:1.55;margin:10px 0 4px}
+.nvc{font-family:var(--mono);font-size:13px;color:var(--mut);align-self:center}
 .emr-x{padding:8px 12px 12px;margin:0}
 </style>
 </head>
