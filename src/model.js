@@ -15,7 +15,7 @@
       G: c.glucose, A: c.ketoacid, clD: 0,          // glucose; unmeasured ketoacids (mEq/L); hyperchloremia from saline
       NaC: c.naCorr,                                // corrected sodium
       Kdef: c.kDeficit * c.wt, Pdef: 0,             // total-body potassium deficit (mEq), phosphate losses (mmol)
-      Ieff: 0, Ifloor: 0,                           // insulin effect (lags the drip), subcutaneous insulin floor
+      Ieff: 0, Ifloor: 0, sc: [],                           // insulin effect (lags the drip), subcutaneous insulin floor
       ce: 0, ceOn: null, ceRisk: c.ceRiskBase || 0, // cerebral edema 0..1, onset time, accumulated risk
       ceAt: c.ceAt,                                 // minute the edema process can start
       mannitol: [], hts: [],                        // osmotherapy doses: [{at, gkg}]
@@ -76,7 +76,11 @@
     s.t += dt;
     /* insulin reaches its effect over ~45 min; a subcutaneous dose gives a floor that ramps over 2 h */
     s.Ieff += (inf.insulin - s.Ieff) * Math.min(1, dt / 45);
-    if (s.scAt != null) s.Ifloor = 0.05 * clamp((s.t - s.scAt) / 120, 0, 1);
+    /* subcutaneous insulin as an equivalent drip rate (U/kg/h): rapid acts from ~30 min, peaks 1–3 h, gone by ~5 h;
+       basal (glargine) is the daily dose spread over 24 h after a 2 h onset */
+    s.Ifloor = (s.sc || []).reduce((a, d) => { const x = s.t - d.at;
+      if (d.kind === 'scBasal') return a + (x > 0 && x < 1440 ? d.dose / 24 * clamp(x / 120, 0, 1) : 0);
+      return a + d.dose * 0.5 * (x < 30 ? clamp(x / 30, 0, 1) : x < 180 ? 1 : clamp(1 - (x - 180) / 120, 0, 1)); }, 0);
     const I = Math.max(s.Ieff, s.Ifloor);
     /* fluids in: maintenance line + boluses */
     let vol = m.rate * h, na = F.na * vol / 1000, cl = F.cl * vol / 1000, kIn = m.kcl * vol / 1000, dexMg = m.dex * 10 * vol;
@@ -130,7 +134,7 @@
     if (s.t >= s.ceAt && s.ceOn == null) s.ceOn = s.t;
     if (s.ceOn != null) {
       const osmo = s.mannitol.some(d => s.t - d.at < 90) || s.hts.some(d => s.t - d.at < 90);
-      const fluidsHigh = (m.rate > 1.7 * s.maint) ? 0.6 : 0;
+      const fluidsHigh = (m.rate > 2.2 * s.maint) ? 0.6 : 0;
       if (s.ceDrive == null) s.ceDrive = 1;
       const grow = (0.12 + 0.07 * s.ceRisk + fluidsHigh * 0.1) * (s.headUp ? 0.85 : 1) * s.ceDrive;
       const peak = s.ceRisk < 1.5 ? 0.45 : 1.2;    // careful management: edema stays moderate

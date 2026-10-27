@@ -5,13 +5,13 @@ window.I18N = {
     start: 'Start', back: 'Back', lang: 'עברית', level: 'Level', guided: 'Guided', indep: 'Independent',
     guidedD: 'Calculation helpers in the order forms and a hint when a critical result arrives.', indepD: 'No helpers: calculate rates and doses yourself, like on shift.',
     caseFile: 'Case', triage: 'Triage', history: 'History', exam: 'Examination',
-    clock: 'Time', gasChip: 'Gas', labChip: 'Labs', since: 'Since arrival', paused: 'Paused', play: 'Run', next: 'Next hour', loc: { ED: 'ED', PICU: 'PICU' },
+    clock: 'Time', gasChip: 'Gas', labChip: 'Labs', since: 'Since arrival', paused: 'Paused', play: 'Run', next: 'Next hour', loc: { ED: 'ED', PICU: 'PICU', WARD: 'Ward' },
     monitor: 'Monitor', orders: 'Orders', results: 'Results', nurse: 'Nurse & events', patient: 'Patient',
     noMon: 'Not connected', attachHint: 'Order a cardiac monitor', active: 'Active orders', none: 'None yet',
     tabs: { care: 'Care', labs: 'Labs', fluids: 'Fluids', insulin: 'Insulin', meds: 'Drugs' },
     groups: { mon: 'Monitor', drug: 'Drugs', line: 'IV / IO, fluids, blood', air: 'Airway & procedures', lab: 'Labs & imaging' }, groupsFull: { mon: 'Monitor (on top of the cart)', drug: 'Drawer 1 · Drugs', line: 'Drawer 2 · IV / IO, fluids, blood products', air: 'Drawer 3 · Airway & procedures', lab: 'Drawer 4 · Labs & imaging' },
     bedside: 'At the patient', team: 'Team & disposition', standing: 'Standing orders', flowT: 'Flow sheet', logT: 'Events', silence: 'Silence', sound: 'Sound', bedED: 'ED · Resus 2', youSays: 'You', already: n => `${n}: already done or in progress.`, youStart: (n, m) => `You start: ${n} (about ${m} min).`, nurseStart: (n, m) => `The nurse starts: ${n} (about ${m} min).`, youDone: n => `${n}: done.`, view: 'View', ready: 'result ready', bedPICU: 'PICU · Bed 4', latest: 'Latest',
-    order: 'Order', stop: 'Stop', change: 'Change', once: 'Once', every: h => `every ${h} h`,
+    order: 'Order', stop: 'Stop', change: 'Change', once: 'Once', every: h => h === 1 ? 'every hour' : `every ${h} h`, ml: 'mL', mlh: 'mL/h', min: 'min', u: 'units', uh: 'units/h',
     o: {
       weigh: 'Weigh the patient', monitor: 'Cardiac monitor + SpO₂ + BP cuff', iv: 'Two IV lines', npo: 'Nothing by mouth (NPO)', headUp: 'Head of bed 30°, midline',
       neuro: 'Neuro checks (GCS, pupils) every hour', io: 'Strict input/output every hour', att: 'Call the attending', picu: 'Admit to PICU', ct: 'Head CT',
@@ -20,17 +20,17 @@ window.I18N = {
       bolus: 'Fluid bolus', main: 'IV fluids (continuous)', insDrip: 'Insulin infusion (regular, IV)', insBolus: 'Insulin IV bolus', scRapid: 'Rapid insulin SC before a meal', scBasal: 'Basal insulin SC (glargine)', stopDrip: 'Stop the insulin infusion',
       mannitol: 'Mannitol 20%', hts: 'NaCl 3%', bicarb: 'Sodium bicarbonate 8.4%', kpo: 'Potassium by mouth/NG (Sopa-K)', kphos: 'Potassium phosphate IV', ondan: 'Ondansetron IV', po: 'Allow drinking and a meal', intub: 'Intubate and ventilate'
     },
-    f: { fluid: 'Fluid', mlkg: 'mL/kg', over: 'over (min)', base: 'Solution', dex: 'Dextrose', kcl: 'KCl (mEq/L)', rate: 'Rate (mL/h)', dose: 'Dose', ukgh: 'units/kg/h', ukg: 'units/kg', gkg: 'g/kg', meqkg: 'mEq/kg', mmolkg: 'mmol/kg', mgkg: 'mg/kg', freq: 'Frequency' },
+    procInfo: (md, m) => `Done by ${md ? 'you' : 'the nurse'} · about ${m} min.`, f: { vol: 'Volume', fluid: 'Fluid', mlkg: 'mL/kg', over: 'over (min)', base: 'Solution', dex: 'Dextrose', kcl: 'KCl (mEq/L)', rate: 'Rate (mL/h)', dose: 'Dose', ukgh: 'units/kg/h', ukg: 'units/kg', gkg: 'g/kg', meqkg: 'mEq/kg', mmolkg: 'mmol/kg', mgkg: 'mg/kg', freq: 'Frequency' },
     fl: { NS: 'NaCl 0.9%', HALF: 'NaCl 0.45%', LR: 'Ringer lactate' },
     help: {
       maint: (m, d, lo, hi) => `Maintenance (4-2-1): ${m} mL/h. Protocol: deficit over 48 h + maintenance ≈ 1.5–2× maintenance = ${lo}–${hi} mL/h.`,
       ins: (u, ml) => `= ${u} units/h · ${ml} mL/h of 10 units in 100 mL`,
       man: ml => `= ${ml} mL of mannitol 20%`, hts: ml => `= ${ml} mL`, bol: ml => `= ${ml} mL`
     },
-    nurseSays: 'Nurse', labSent: n => `${n}: drawn and sent to the lab.`, imgOrdered: n => `${n}: ordered.`, consSays: 'Consultant', objCancel: 'Cancel the order', objGo: 'Do it anyway', objDropped: n => `${n}: cancelled after the attending's advice.`, consCalled: (n, m) => `${n}: paged; they will call back in about ${m} min.`, attSays: 'Attending', lab: 'Result', sys: 'Note',
+    nurseSays: 'Nurse', labSent: n => `${n}: drawn and sent to the lab.`, imgOrdered: n => `${n}: ordered.`, consSays: 'Consultant', objCancel: 'Cancel the order', objGo: 'Do it anyway', objDropped: n => `${n}: cancelled after the attending's advice.`, consCalled: (n, m) => `${n}: consult requested; they will call back in about ${m} min.`, attSays: 'Attending', lab: 'Result', sys: 'Note',
     msgs: {
       weighed: w => `Weight now: ${w} kg (35 kg two months ago).`, ivIn: 'Two IV lines in. Bloods can be drawn from the line.', noIV: 'There is no IV access yet.',
-      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', wardReq: 'Transfer to the ward requested.', picuIn: 'He is in the PICU now.',
+      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', wardReq: 'Transfer to the ward requested.', wardIn: 'He is on the pediatric ward now.', noTS: 'The blood bank will not issue blood products without a valid type and screen: send one first.', picuIn: 'He is in the PICU now.',
       thirsty: 'He says he is very thirsty and asks for water.', headache: 'He complains of a headache and vomited again.', hrDrop: hr => `Heart rate fell to ${hr} and he is harder to wake.`,
       pupils: 'Pupils are sluggish and his breathing is irregular!', kLow: 'On the monitor: flat T waves and U waves.', kHigh: 'On the monitor: tall peaked T waves.',
       hypo: g => `He is sweaty and confused. Capillary glucose ${g} mg/dL.`, lowUO: 'Urine output has been low for two hours.', breakfast: 'It is morning; breakfast has arrived and he is hungry.',
@@ -55,13 +55,13 @@ window.I18N = {
     start: 'התחלה', back: 'חזרה', lang: 'English', level: 'רמה', guided: 'מודרך', indep: 'עצמאי',
     guidedD: 'עזרי חישוב בטפסי ההוראות ורמז כשמגיעה תוצאה קריטית.', indepD: 'בלי עזרים: מחשבים קצבים ומינונים לבד, כמו במשמרת.',
     caseFile: 'המקרה', triage: 'טריאז׳', history: 'אנמנזה', exam: 'בדיקה',
-    clock: 'שעה', gasChip: 'גזים', labChip: 'מעבדה', since: 'מאז ההגעה', paused: 'עצור', play: 'הפעלה', next: 'שעה קדימה', loc: { ED: 'מיון', PICU: 'טיפול נמרץ' },
+    clock: 'שעה', gasChip: 'גזים', labChip: 'מעבדה', since: 'מאז ההגעה', paused: 'עצור', play: 'הפעלה', next: 'שעה קדימה', loc: { ED: 'מיון', PICU: 'טיפול נמרץ', WARD: 'מחלקת ילדים' },
     monitor: 'מוניטור', orders: 'הוראות', results: 'תוצאות', nurse: 'אחות ואירועים', patient: 'המטופל',
     noMon: 'לא מחובר', attachHint: 'הזמינו מוניטור', active: 'הוראות פעילות', none: 'אין עדיין',
     tabs: { care: 'טיפול', labs: 'מעבדה', fluids: 'נוזלים', insulin: 'אינסולין', meds: 'תרופות' },
     groups: { mon: 'מוניטור', drug: 'תרופות', line: 'IV / IO, נוזלים, דם', air: 'נתיב אוויר ופעולות', lab: 'מעבדה והדמיה' }, groupsFull: { mon: 'מוניטור (על העגלה)', drug: 'מגירה 1 · תרופות', line: 'מגירה 2 · IV / IO, נוזלים, מוצרי דם', air: 'מגירה 3 · נתיב אוויר ופעולות', lab: 'מגירה 4 · מעבדה והדמיה' },
     bedside: 'ליד המטופל', team: 'צוות והחלטות', standing: 'הוראות קבועות', flowT: 'גיליון מעקב', logT: 'אירועים', silence: 'השתקה', sound: 'צליל', bedED: 'מיון · חדר החייאה 2', youSays: 'אתם', already: n => `${n}: כבר בוצע או בביצוע.`, youStart: (n, m) => `אתם מתחילים: ${n} (כ-${m} דקות).`, nurseStart: (n, m) => `האחות מתחילה: ${n} (כ-${m} דקות).`, youDone: n => `${n}: בוצע.`, view: 'הצגה', ready: 'התשובה התקבלה', bedPICU: 'טיפול נמרץ · מיטה 4', latest: 'אחרון',
-    order: 'הוראה', stop: 'הפסקה', change: 'שינוי', once: 'פעם אחת', every: h => `כל ${h} שע׳`,
+    order: 'הוראה', stop: 'הפסקה', change: 'שינוי', once: 'פעם אחת', every: h => h === 1 ? 'כל שעה' : `כל ${h} שעות`, ml: 'מ״ל', mlh: 'מ״ל/שע׳', min: 'דק׳', u: 'יח׳', uh: 'יח׳/שע׳',
     o: {
       weigh: 'שקילה', monitor: 'מוניטור לב + סטורציה + שרוול ל״ד', iv: 'שני עירויים', npo: 'צום (NPO)', headUp: 'הגבהת ראש המיטה ל-30°, ראש בקו האמצע',
       neuro: 'אומדן נוירולוגי (GCS, אישונים) כל שעה', io: 'מאזן נוזלים מדויק כל שעה', att: 'שיחה לכונן', picu: 'אשפוז בטיפול נמרץ', ct: 'CT ראש',
@@ -70,17 +70,17 @@ window.I18N = {
       bolus: 'בולוס נוזלים', main: 'עירוי נוזלים רציף', insDrip: 'עירוי אינסולין (רגולר, IV)', insBolus: 'בולוס אינסולין IV', scRapid: 'אינסולין מהיר תת-עורי לפני ארוחה', scBasal: 'אינסולין בזאלי תת-עורי (לנטוס)', stopDrip: 'הפסקת עירוי האינסולין',
       mannitol: 'מניטול 20%', hts: 'NaCl 3%', bicarb: 'סודיום ביקרבונט 8.4%', kpo: 'אשלגן פומי/בזונדה (Sopa-K)', kphos: 'פוטסיום פוספט IV', ondan: 'אונדנסטרון IV', po: 'התרת שתייה וארוחה', intub: 'אינטובציה והנשמה'
     },
-    f: { fluid: 'נוזל', mlkg: 'מ״ל/ק״ג', over: 'במשך (דק׳)', base: 'תמיסה', dex: 'גלוקוז', kcl: 'KCl (מא״ק/ל׳)', rate: 'קצב (מ״ל/שע׳)', dose: 'מינון', ukgh: 'יח׳/ק״ג/שע׳', ukg: 'יח׳/ק״ג', gkg: 'גר׳/ק״ג', meqkg: 'מא״ק/ק״ג', mmolkg: 'ממול/ק״ג', mgkg: 'מ״ג/ק״ג', freq: 'תדירות' },
+    procInfo: (md, m) => `ביצוע: ${md ? 'אתם' : 'האחות'} · כ-${m} דקות.`, f: { vol: 'נפח', fluid: 'נוזל', mlkg: 'מ״ל/ק״ג', over: 'במשך (דק׳)', base: 'תמיסה', dex: 'גלוקוז', kcl: 'KCl (מא״ק/ל׳)', rate: 'קצב (מ״ל/שע׳)', dose: 'מינון', ukgh: 'יח׳/ק״ג/שע׳', ukg: 'יח׳/ק״ג', gkg: 'גר׳/ק״ג', meqkg: 'מא״ק/ק״ג', mmolkg: 'ממול/ק״ג', mgkg: 'מ״ג/ק״ג', freq: 'תדירות' },
     fl: { NS: 'NaCl 0.9%', HALF: 'NaCl 0.45%', LR: 'רינגר לקטט' },
     help: {
       maint: (m, d, lo, hi) => `אחזקה (4-2-1): ${m} מ״ל/שע׳. לפי הפרוטוקול: חסר על פני 48 שעות + אחזקה ≈ פי 1.5–2 מהאחזקה = ${lo}–${hi} מ״ל/שע׳.`,
       ins: (u, ml) => `= ${u} יח׳/שע׳ · ${ml} מ״ל/שע׳ של 10 יח׳ ב-100 מ״ל`,
       man: ml => `= ${ml} מ״ל מניטול 20%`, hts: ml => `= ${ml} מ״ל`, bol: ml => `= ${ml} מ״ל`
     },
-    nurseSays: 'אחות', labSent: n => `${n}: נלקח ונשלח למעבדה.`, imgOrdered: n => `${n}: הוזמן.`, consSays: 'יועץ', objCancel: 'ביטול ההוראה', objGo: 'לבצע בכל זאת', objDropped: n => `${n}: בוטל בעקבות הכונן.`, consCalled: (n, m) => `${n}: הוזנק; יחזרו אליכם בעוד כ-${m} דקות.`, attSays: 'כונן', lab: 'תוצאה', sys: 'הערה',
+    nurseSays: 'אחות', labSent: n => `${n}: נלקח ונשלח למעבדה.`, imgOrdered: n => `${n}: הוזמן.`, consSays: 'יועץ', objCancel: 'ביטול ההוראה', objGo: 'לבצע בכל זאת', objDropped: n => `${n}: בוטל בעקבות הכונן.`, consCalled: (n, m) => `${n}: נשלחה בקשת ייעוץ; יחזרו אליכם בעוד כ-${m} דקות.`, attSays: 'כונן', lab: 'תוצאה', sys: 'הערה',
     msgs: {
       weighed: w => `משקל כעת: ${w} ק״ג (35 ק״ג לפני חודשיים).`, ivIn: 'הוכנסו שני עירויים. אפשר לקחת דמים מהעירוי.', noIV: 'אין עדיין גישה ורידית.',
-      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', wardReq: 'התבקשה העברה למחלקה.', picuIn: 'הוא כעת בטיפול נמרץ.',
+      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', wardReq: 'התבקשה העברה למחלקה.', wardIn: 'הוא כעת במחלקת ילדים.', noTS: 'בנק הדם לא ינפיק מוצרי דם בלי סוג והצלבה בתוקף: קודם לשלוח סוג והצלבה.', picuIn: 'הוא כעת בטיפול נמרץ.',
       thirsty: 'הוא אומר שהוא צמא מאוד ומבקש מים.', headache: 'הוא מתלונן על כאב ראש והקיא שוב.', hrDrop: hr => `הדופק ירד ל-${hr} וקשה יותר להעיר אותו.`,
       pupils: 'האישונים מגיבים באיטיות והנשימה לא סדירה!', kLow: 'במוניטור: גלי T שטוחים וגלי U.', kHigh: 'במוניטור: גלי T גבוהים ומחודדים.',
       hypo: g => `הוא מזיע ומבולבל. סוכר קפילרי ${g} מ״ג/ד״ל.`, lowUO: 'תפוקת השתן נמוכה כבר שעתיים.', breakfast: 'בוקר; ארוחת הבוקר הגיעה והוא רעב.',

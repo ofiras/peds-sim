@@ -26,7 +26,8 @@
     insDrip: [['dose', 'num', '']], scRapid: [['dose', 'num', 0.1]], scBasal: [['dose', 'num', 0.2]],
     mannitol: [['gkg', 'num', 0.5]], hts: [['mlkg', 'num', 5]], bicarb: [['meqkg', 'num', 1]], kpo: [['meqkg', 'num', 0.5]], kphos: [['mmolkg', 'num', 0.25]]
   };
-  LABS.forEach(k => { FORMS[k] = [['freq', 'freq']]; });
+  LABS.forEach(k => { if (['poc', 'vbg', 'abg', 'chem', 'bhb', 'ecg'].includes(k)) FORMS[k] = [['freq', 'freq']]; });
+  Object.assign(FORMS, { insBolus: [['dose', 'num', 0.1]], cagluc: [['mlkg', 'num', 0.5]], ondan: [['mgkg', 'num', 0.15]], paracet: [['mgkg', 'num', 15]], morphine: [['mgkg', 'num', 0.1]], midaz: [['mgkg', 'num', 0.1]], ceftriax: [['mgkg', 'num', 50]] });
   /* at the patient: the three most used are big, like the PALS hands-on buttons */
   const BED = { big: ['examQ', 'historyQ', 'att'], sm: ['weigh', 'npo', 'headUp', 'neuro', 'io', 'po', 'endo', 'surg', 'picu', 'ward'] };
   const BED_ICON = { examQ: 'auscult', historyQ: 'history', att: 'ems', weigh: 'glucose', npo: 'position', headUp: 'position', neuro: 'resp', io: 'fluid', po: 'albuterol', endo: 'ems', surg: 'ems', picu: 'ems', ward: 'ems' };
@@ -100,12 +101,12 @@
     en: { io_access: 'Intraosseous (IO) access', o2: 'Oxygen', foley: 'Urinary catheter', ngt: 'Nasogastric tube', aline: 'Arterial line', cvc: 'Central venous line', lp: 'Lumbar puncture', endo: 'Endocrinology consult', surg: 'Surgical consult', ward: 'Admit to the pediatric ward',
       abg: 'Arterial blood gas', coag: 'Coagulation (PT/INR, PTT)', tns: 'Type and screen / crossmatch', bcx: 'Blood culture', ua: 'Urinalysis + urine culture', lipase: 'Lipase / amylase', lft: 'Liver function tests', cxr: 'Chest X-ray', usabd: 'Abdominal ultrasound',
       dexBolus: 'Dextrose 10% IV bolus', prbc: 'Packed red cells', ffp: 'Fresh frozen plasma', plt: 'Platelets', albumin: 'Albumin 5%', cagluc: 'Calcium gluconate 10% IV', paracet: 'Paracetamol IV', morphine: 'Morphine IV', midaz: 'Midazolam IV', ceftriax: 'Ceftriaxone IV',
-      insulinVial: 'Regular insulin (Actrapid)', csf: 'CSF results', kclConc: 'Concentrated KCl: goes into the IV bag', kclWhere: 'Potassium is added to the maintenance fluids: set it on the infusion pump.',
+      insulinVial: 'Regular insulin (Actrapid)', csf: 'CSF results', dmwab: 'Diabetes autoantibodies', kclConc: 'Concentrated KCl: goes into the IV bag', kclWhere: 'Potassium is added to the maintenance fluids: set it on the infusion pump.',
       modes: { nc: 'Nasal cannula', mask: 'Face mask', nrb: 'Non-rebreather', hfnc: 'High-flow' } },
     he: { io_access: 'גישה תוך-גרמית (IO)', o2: 'חמצן', foley: 'קטטר בשלפוחית', ngt: 'זונדה (NG)', aline: 'קו עורקי', cvc: 'צנתר ורידי מרכזי', lp: 'ניקור מותני', endo: 'ייעוץ אנדוקרינולוג', surg: 'ייעוץ כירורג', ward: 'אשפוז במחלקת ילדים',
       abg: 'גזים עורקיים', coag: 'תפקודי קרישה (PT/INR, PTT)', tns: 'סוג והצלבה', bcx: 'תרבית דם', ua: 'בדיקת שתן + תרבית', lipase: 'ליפאז / עמילאז', lft: 'תפקודי כבד', cxr: 'צילום חזה', usabd: 'US בטן',
       dexBolus: 'בולוס גלוקוז 10% IV', prbc: 'מנות דם (PRBC)', ffp: 'פלזמה (FFP)', plt: 'טסיות', albumin: 'אלבומין 5%', cagluc: 'קלציום גלוקונט 10% IV', paracet: 'פרצטמול IV', morphine: 'מורפין IV', midaz: 'מידזולם IV', ceftriax: 'צפטריאקסון IV',
-      insulinVial: 'אינסולין רגולר (Actrapid)', csf: 'תשובת נוזל שדרה', kclConc: 'KCl מרוכז: מוסיפים לשקית העירוי', kclWhere: 'אשלגן מוסיפים לנוזלי האחזקה: מגדירים אותו במשאבת העירוי.',
+      insulinVial: 'אינסולין רגולר (Actrapid)', csf: 'תשובת נוזל שדרה', dmwab: 'נוגדנים לסוכרת', kclConc: 'KCl מרוכז: מוסיפים לשקית העירוי', kclWhere: 'אשלגן מוסיפים לנוזלי האחזקה: מגדירים אותו במשאבת העירוי.',
       modes: { nc: 'משקפי חמצן', mask: 'מסכה', nrb: 'מסכה עם שקית', hfnc: 'זרימה גבוהה' } }
   };
   const oname = id => L.o[id] || EXTRA[LANG][id] || id;
@@ -114,7 +115,7 @@
   const ONCE = ['monitor', 'npo', 'headUp', 'picu', 'ward', 'endo', 'surg'];
   const onceDone = id => id === 'monitor' ? S.flags.mon : id === 'headUp' ? S.m.headUp : S.flags[id];
   const PROC = { iv: { by: 'nurse', min: 5 }, io_access: { by: 'md', min: 2, flag: 'io' }, ngt: { by: 'nurse', min: 5 }, foley: { by: 'nurse', min: 5 }, aline: { by: 'md', min: 15 }, cvc: { by: 'md', min: 20 }, lp: { by: 'md', min: 15 }, intub: { by: 'md', min: 10, flag: 'intubated' } };
-  const LAB_DELAY = { poc: 0, vbg: 10, abg: 10, chem: 40, bhb: 0, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 0, dmw: 2880, cxr: 30, usabd: 60, ct: 40 };
+  const LAB_DELAY = { poc: 0, vbg: 10, abg: 10, chem: 40, bhb: 0, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 0, dmw: 240, cxr: 30, usabd: 60, ct: 40 };
   /* invasive or costly orders this case does not need: shown in the debrief as unnecessary */
   const UNNEEDED = { cvc: 4, prbc: 4, ffp: 3, plt: 3, albumin: 2, lp: 8, intub: 6, ceftriax: 1, morphine: 1, midaz: 2, usabd: 1, surg: 0 };
 
@@ -128,7 +129,7 @@
   document.addEventListener('click', e => { if (e.target.closest('[data-lang]')) { setLang(LANG === 'he' ? 'en' : 'he'); S ? renderSim() : home(); } });
 
   function home() {
-    stopLoop(); S = null;
+    stopLoop(); S = null; $$('.scrim').forEach(x => x.remove());
     app.innerHTML = `<div class="phome"><div class="top"><div><span class="eyebrow">ER · PICU</span><h1>${esc(L.appTitle)}</h1></div><button class="btn ghost" data-lang>${esc(L.lang)}</button></div>
       <p class="sub">${esc(L.appSub)}</p>
       <div class="lvpick"><span class="eyebrow">${esc(L.level)}</span>${['guided', 'indep'].map(k => `<label class="pill ${LEVEL === k ? 'on' : ''}"><input type="radio" name="lv" value="${k}" ${LEVEL === k ? 'checked' : ''}>${esc(L[k])}</label>`).join('')}<small>${esc(L[LEVEL + 'D'])}</small></div>
@@ -143,7 +144,8 @@
 
   /* ---------------- session ---------------- */
   function startCase() {
-    S = { m: M.create(C.model), procs: {}, later: [], log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
+    $$('.scrim').forEach(x => x.remove());
+    S = { date0: new Date().setHours(0, 0, 0, 0), m: M.create(C.model), procs: {}, later: [], log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
     msg('sys', CT().triage);
     renderSim(); loop();
     S.speed = 1; renderClock();   // the clock runs from arrival and never stops
@@ -161,10 +163,11 @@
   /* ---------------- orders ---------------- */
   function order(id, p = {}) {
     if (S.ended) return;
-    const m = S.m, w = m.wt, needIV = ['bolus', 'main', 'insDrip', 'insBolus', 'mannitol', 'hts', 'bicarb', 'kphos', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin', 'cagluc', 'ondan', 'paracet', 'morphine', 'midaz', 'ceftriax'];
+    const m = S.m, w = m.wt, needIV = ['bolus', 'main', 'insDrip', 'insBolus', 'mannitol', 'hts', 'bicarb', 'kphos', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin', 'cagluc', 'ondan', 'paracet', 'morphine', 'midaz', 'ceftriax', 'intub'];
     if (needIV.includes(id) && !S.flags.iv && !S.flags.io) { msg('nurse', L.msgs.noIV); return; }
+    if (['prbc', 'ffp', 'plt'].includes(id) && !S.res.some(r => r.kind === 'tns' && r.ready <= now())) { msg('nurse', L.msgs.noTS); return; }
     /* the attending objects to harmful orders before anything happens: cancel (logged, half the penalty) or insist */
-    const W = CT().warn || {}, wk = id === 'intub' ? (m.ce < 0.55 ? 'intub' : null) : id;
+    const W = CT().warn || {}, wk = id === 'intub' ? (m.ce < 0.55 ? 'intub' : null) : id === 'ward' ? (m.pH < 7.3 ? 'ward' : null) : id;
     if (wk && W[wk] && !p.force) {
       if (ONCE.includes(id) && onceDone(id)) { msg('sys', L.already(oname(id))); return; }
       if ((PROC[id] && (S.flags[PROC[id].flag || id] || S.procs[id] != null))) { msg('sys', L.already(oname(id))); return; }
@@ -181,12 +184,12 @@
     const PR = PROC[id];
     if (PR) {
       if (S.flags[PR.flag || id] || S.procs[id] != null) { msg('sys', L.already(oname(id))); return; }
-      S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)) });
+      S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)), ce: m.ce });
       S.procs[id] = now() + PR.min;
       msg(PR.by === 'md' ? 'you' : 'nurse', PR.by === 'md' ? L.youStart(oname(id), PR.min) : L.nurseStart(oname(id), PR.min));
       renderSitu(); return;
     }
-    S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)) });
+    S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)), ce: m.ce });
     const MS = L.msgs;
     switch (id) {
       case 'historyQ': msg('sys', `${L.history}: ${CT().history}`); break;
@@ -199,16 +202,16 @@
       case 'att': S.att.push(now()); msg('att', m.ce > 0.25 ? MS.attCE : p.ins ? MS.attIns : MS.attGen); break;
       case 'picu': S.flags.picu = true; S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); break;
       case 'endo': case 'surg': { S.flags[id] = true; const cs = (CT().consult || {})[id]; msg('sys', L.consCalled(oname(id), cs ? cs.min : 30)); if (cs) S.later.push({ t: now() + cs.min, kind: 'cons', text: cs.text }); break; }
-      case 'ward': S.flags.ward = true; msg('sys', MS.wardReq); break;
+      case 'ward': S.flags.ward = true; S.flags.picuAt = null; S.later.push({ t: now() + 30, kind: 'sys', text: MS.wardIn, loc: 'WARD' }); msg('sys', MS.wardReq); break;
       case 'o2': S.flags.o2 = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
       case 'ct': if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) { msg('att', MS.ctEarly); S.log[S.log.length - 1].early = true; } else msg('nurse', L.imgOrdered(oname('ct'))), addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
       case 'cxr': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'צילום חזה AP בשכיבה: שדות ריאה נקיים, ללא תסנינים או נוזל פלאורלי. צל לב בגודל תקין. ללא חזה אוויר. פענוח: צילום תקין.' : 'Supine AP chest: clear lung fields, no consolidation or effusion. Normal cardiac silhouette. No pneumothorax. Impression: normal study.' }); break;
       case 'usabd': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'US בטן: כבד, טחול וכליות תקינים. ללא נוזל חופשי. התוספתן לא הודגם; ללא סימנים עקיפים לדלקת. פענוח: ללא ממצא חריג.' : 'Abdominal ultrasound: normal liver, spleen and kidneys. No free fluid. Appendix not visualized; no secondary signs of inflammation. Impression: no abnormality.' }); break;
-      case 'bolus': m.inf.boluses.push({ fluid: p.fluid, left: p.mlkg * w, mlMin: p.mlkg * w / Math.max(5, p.over) }); msg('nurse', `${oname(id)}: ${L.fl[p.fluid]} ${Math.round(p.mlkg * w)} mL / ${p.over}′`); break;
-      case 'main': m.inf.main = { base: p.base, dex: +p.dex, kcl: +p.kcl, rate: +p.rate }; S.mainHist = (S.mainHist || []).concat({ t: now(), rate: +p.rate }); msg('nurse', `${oname(id)}: ${L.fl[p.base]}${+p.dex ? ` + D${p.dex}%` : ''}${+p.kcl ? ` + KCl ${p.kcl}` : ''} · ${p.rate} mL/h`); break;
-      case 'insDrip': m.inf.insulin = +p.dose; msg('nurse', `${oname(id)}: ${p.dose} u/kg/h = ${r1(p.dose * w)} u/h`); break;
-      case 'insBolus': m.Ieff += 0.1; m.ceRisk += 1.5; msg('nurse', MS.insBolus); break;
-      case 'scRapid': case 'scBasal': m.scAt = m.scAt ?? now(); msg('nurse', MS.scGiven); break;
+      case 'bolus': m.inf.boluses.push({ fluid: p.fluid, left: p.mlkg * w, mlMin: p.mlkg * w / Math.max(5, p.over) }); msg('nurse', `${oname(id)}: ${L.fl[p.fluid]} ${Math.round(p.mlkg * w)} ${L.ml} / ${p.over} ${L.min}`); break;
+      case 'main': m.inf.main = { base: p.base, dex: +p.dex, kcl: +p.kcl, rate: +p.rate }; S.mainHist = (S.mainHist || []).concat({ t: now(), rate: +p.rate }); msg('nurse', `${oname(id)}: ${L.fl[p.base]}${+p.dex ? ` + D${p.dex}%` : ''}${+p.kcl ? ` + KCl ${p.kcl}` : ''} · ${p.rate} ${L.mlh}`); break;
+      case 'insDrip': m.inf.insulin = +p.dose; msg('nurse', `${oname(id)}: ${p.dose} ${L.f.ukgh} = ${r1(p.dose * w)} ${L.uh}`); break;
+      case 'insBolus': m.Ieff += +p.dose || 0.1; m.ceRisk += 1.5; msg('nurse', `${MS.insBolus} (${r1((+p.dose || 0.1) * w)} ${L.u})`); break;
+      case 'scRapid': case 'scBasal': m.sc.push({ at: now(), kind: id, dose: +p.dose }); msg('nurse', `${MS.scGiven} (${p.dose} ${L.f.ukg} = ${r1(p.dose * w)} ${L.u})`); break;
       case 'stopDrip': m.inf.insulin = 0; msg('nurse', MS.dripStopped); break;
       case 'mannitol': case 'hts': {
         const vol = id === 'mannitol' ? p.gkg * 5 * w : p.mlkg * w;
@@ -219,16 +222,16 @@
       }
       case 'bicarb': m.bicarbNow = 2 * p.meqkg; m.ceRisk += 1.2; msg('nurse', MS.bicarb); break;
       case 'kpo': m.kPO = p.meqkg * w; msg('nurse', MS.kpo); break;
-      case 'kphos': m.kPO = 0.37 * p.mmolkg / 0.25 * w * 0.4; m.Pdef = Math.max(0, m.Pdef - p.mmolkg * w); msg('nurse', MS.kphos); break;
-      case 'dexBolus': m.G += p.mlkg * 50; msg('nurse', oname(id) + ` ${Math.round(p.mlkg * w)} mL ✓`); break;
-      case 'prbc': case 'ffp': case 'plt': case 'albumin': m.deficit -= p.mlkg * w; msg('nurse', oname(id) + ` ${Math.round(p.mlkg * w)} mL ✓`); break;
+      case 'kphos': m.kPO = p.mmolkg * w * 1.47; m.Pdef = Math.max(0, m.Pdef - p.mmolkg * w); msg('nurse', MS.kphos); break;
+      case 'dexBolus': m.G += p.mlkg * 50; msg('nurse', `${oname(id)}: ${Math.round(p.mlkg * w)} ${L.ml}`); break;
+      case 'prbc': case 'ffp': case 'plt': case 'albumin': m.inf.boluses.push({ fluid: 'NS', left: p.mlkg * w, mlMin: p.mlkg * w / (id === 'albumin' ? 30 : 120) }); msg('nurse', `${oname(id)}: ${Math.round(p.mlkg * w)} ${L.ml}`); break;
       case 'ondan': msg('nurse', MS.ondan); break;
-      case 'po': S.flags.po = true; if (m.pH > 7.3 && m.HCO3 > 18) msg('nurse', MS.po); else { msg('nurse', MS.poEarly); m.ceRisk += 0.3; } break;
+      case 'po': if (m.pH > 7.3 && m.HCO3 > 18) { S.flags.po = true; S.flags.poAt = now(); msg('nurse', MS.po); } else { S.log[S.log.length - 1].fail = true; msg('nurse', MS.poEarly); m.ceRisk += 0.3; } break;
       default:
         if (LABS.includes(id)) {
           if (p.freq && +p.freq) { S.standing[id] = { every: p.freq * 60, next: now() }; msg('nurse', `${oname(id)}: ${L.every(+p.freq)}`); }
           else { if (LAB_DELAY[id]) msg('nurse', (['cxr', 'usabd', 'ct'].includes(id) ? L.imgOrdered : L.labSent)(oname(id))); drawLab(id); }
-        } else msg('nurse', oname(id) + ' ✓');
+        } else msg('nurse', oname(id) + (p.mgkg ? `: ${p.mgkg} ${L.f.mgkg} = ${r1(p.mgkg * w)} mg` : p.mlkg ? `: ${Math.round(p.mlkg * w * 10) / 10} ${L.ml}` : ' ✓'));
     }
     renderSitu(); renderFlow(); renderStatus();
   }
@@ -240,22 +243,25 @@
     if (id === 'lp') addResult('csf', now() + 45, { txt: he ? 'נוזל שדרה: צלול. תאים 2/µL, חלבון 25 מ״ג/ד״ל, גלוקוז 310 מ״ג/ד״ל (משקף את הסוכר בדם). צביעת גראם: ללא חיידקים.' : 'CSF: clear. Cells 2/µL, protein 25 mg/dL, glucose 310 mg/dL (reflects the blood glucose). Gram stain: no organisms.' }, now());
     renderStatus(); renderSitu();
   }
-  function drawLab(id) {
+  /* hemoglobin falls as the dehydration is corrected (hemoconcentration on arrival) */
+  const hgb = () => r1(15.1 - 0.012 * Math.max(0, 3000 - S.m.deficit) / 30);
+  function drawLab(id, standing) {
     const m = S.m, he = LANG === 'he'; let v;
     if (['poc', 'vbg', 'chem', 'bhb'].includes(id)) v = M.labs(m, id);
-    else if (id === 'abg') v = Object.assign(M.labs(m, 'vbg'), { arterial: true });
+    if (id === 'vbg') v.hb = hgb();
+    else if (id === 'abg') { v = Object.assign(M.labs(m, 'vbg'), { arterial: true, hb: hgb() }); v.pCO2 = Math.max(10, v.pCO2 - 5); v.pH = Math.round((v.pH + 0.03) * 100) / 100; }
     else if (id === 'ecg') v = { hr: m.HR, k: m.K, ta: m.K > 6.5 ? 0.7 : m.K > 5.5 ? 0.45 : m.K < 3 ? 0.07 : m.K < 3.5 ? 0.15 : undefined, u: m.K < 3 ? 0.13 : m.K < 3.5 ? 0.06 : 0 };
-    else if (id === 'cbc') v = { WBC: 18.2, NEU: 86, HGB: r1(15.1 - 0.012 * Math.max(0, 3000 - m.deficit) / 30), HCT: 45, MCV: 82, PLT: 410, CRP: 0.6 };
+    else if (id === 'cbc') v = { WBC: 18.2, NEU: 86, HGB: hgb(), HCT: Math.round(hgb() * 3), MCV: 82, PLT: 410, CRP: 0.6 };
     else if (id === 'coag') v = { PT: 12.4, INR: 1.0, PTT: 29, FIB: 310 };
     else if (id === 'lipase') v = { LIP: 48, AMY: 118 };
     else if (id === 'lft') v = { ALT: 22, AST: 30, BIL: 0.4, ALB: 4.4 };
-    else if (id === 'dmw') v = { A1C: 12.4, TSH: 2.1, TTG: 2 };
+    else if (id === 'dmw') { v = { A1C: 12.4, TSH: 2.1, TTG: 2 }; addResult('dmwab', now() + 4320, { txt: he ? 'Anti-GAD: חיובי · נוגדנים לאינסולין: חיובי · IA-2: חיובי · ZnT8: ממתין' : 'Anti-GAD: positive · Insulin autoantibodies: positive · IA-2: positive · ZnT8: pending' }, m.t); }
     else if (id === 'tns') v = { txt: he ? 'סוג דם A Rh+ · סקר נוגדנים שלילי · 2 מנות מוצלבות זמינות' : 'Blood group A Rh+ · antibody screen negative · 2 crossmatched units available' };
     else if (id === 'bcx') v = { txt: he ? 'בינתיים ללא צמיחה (דוח ביניים 24 שעות)' : 'No growth so far (24 h interim report)' };
     else if (id === 'ua') v = { txt: he ? 'צפיפות 1.030 · pH 5.0 · גלוקוז 4+ · קטונים 3+ · חלבון שלילי · דם שלילי · לויקוציטים שלילי · ניטריטים שלילי. תרבית: נשלחה.' : 'SG 1.030 · pH 5.0 · glucose 4+ · ketones 3+ · protein neg · blood neg · leukocytes neg · nitrite neg. Culture: sent.' };
-    addResult(id, now() + (LAB_DELAY[id] ?? 30), v, m.t);
+    addResult(id, now() + (LAB_DELAY[id] ?? 30), v, m.t, standing);
   }
-  function addResult(kind, ready, v, drawn) { const r = { kind, drawn: drawn ?? now(), ready, v }; S.res.push(r); renderChips(); if (ready <= now()) { r.seen = true; r.at = now(); resultArrived(r); } }
+  function addResult(kind, ready, v, drawn, st) { const r = { kind, drawn: drawn ?? now(), ready, v, st }; S.res.push(r); renderChips(); if (ready <= now()) { r.seen = true; r.at = now(); resultArrived(r); } }
 
   /* ---------------- time loop ---------------- */
   function stopLoop() { clearInterval(timer); timer = null; }
@@ -272,13 +278,13 @@
   }
   function minute() {
     const m = S.m; M.step(m, 1); const t = m.t;
-    S.later = S.later.filter(x => { if (t >= x.t) { msg(x.kind, x.text); return false; } return true; });
+    S.later = S.later.filter(x => { if (t >= x.t) { if (x.loc) S.flags.loc = x.loc; msg(x.kind, x.text); return false; } return true; });
     /* standing orders */
     Object.entries(S.standing).forEach(([k, o]) => {
       if (t < o.next) return; o.next += o.every;
       if (k === 'neuro') addResult('neuro', t + 2, { GCS: m.GCS, pupils: L.pupilsV[m.pupils] }, t);
       else if (k === 'io') addResult('io', t + 1, { IN: Math.round(m.io.lastHourIn), OUT: Math.round(m.io.lastHourOut), UO: r1(m.io.lastHourOut / m.wt) }, t);
-      else drawLab(k);
+      else drawLab(k, true);
     });
     /* results arriving */
     S.res.forEach(r => { if (!r.seen && r.ready <= t) { r.seen = true; r.at = t; resultArrived(r); } });
@@ -295,7 +301,7 @@
     if (!r.v || r.kind === 'neuro' || r.kind === 'io') return;
     const ix = S.res.indexOf(r), short = r.kind === 'ecg' ? RV.ecgText(r.v, LANG === 'he').interp : r.v.txt != null ? '' : RES_KEYS.filter(k => r.v[k] != null).map(k => `${L.flow[k]} ${r.v[k]}`).join(' · ');
     msg('lab', `${oname(r.kind)}${short ? ': ' + short : ` · ${L.ready}`}`, false, ix);
-    if (['poc', 'bhb', 'ecg'].includes(r.kind) && !S.bulk) showResult(r);   // bedside tests are shown at the bedside, like the PALS printout
+    if (['poc', 'bhb', 'ecg'].includes(r.kind) && !S.bulk && !r.st && !$('.scrim')) showResult(r);   // bedside tests are shown at the bedside, like the PALS printout
   }
   function once(key, cond, fn) { if (!S.fired[key] && cond) { S.fired[key] = true; fn(); } }
   function events() {
@@ -312,7 +318,7 @@
     if (t % 60 === 0) { S.uoLow = m.io.lastHourOut / m.wt < 0.5 ? S.uoLow + 1 : 0; if (S.uoLow >= 2) once('lowUO', true, () => msg('nurse', MS.lowUO, true)); }
     once('breakfast', clock >= 7 * 60 + 30 && clock < 12 * 60 && m.pH > 7.3 && m.HCO3 > 18, () => msg('nurse', MS.breakfast, true));
     /* the case ends once he is on subcutaneous insulin, the drip is off and he has eaten */
-    if (did('scRapid') && m.inf.insulin === 0 && S.flags.po && t - Math.max(firstT('scRapid'), firstT('stopDrip') ?? 0) >= 60) endCase();
+    if (did('scRapid') && m.inf.insulin === 0 && S.flags.po && m.pH > 7.3 && t - Math.max(firstT('scRapid'), firstT('stopDrip') ?? 0) >= 60) endCase();
     if (t >= 24 * 60) endCase();
   }
 
@@ -408,7 +414,7 @@
     if (e.target.closest('[data-home]')) { home(); return; }
     if (e.target.closest('[data-end]')) { const md = modal(`<p>${esc(L.endQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = ev => { if (ev.target.closest('[data-y]')) { md.close(); endCase(); } else if (ev.target.closest('[data-n]')) md.close(); }; return; }
     const st = e.target.closest('[data-stop]'); if (st) { stopOrder(st.dataset.stop); return; }
-    const rs = e.target.closest('[data-res]'); if (rs) { const r = S.res[+rs.dataset.res]; GAS_KINDS.includes(r.kind) ? gasView(gases().indexOf(r)) : showResult(r); return; }
+    const rs = e.target.closest('[data-res]'); if (rs) { const r = S.res[+rs.dataset.res]; GAS_KINDS.includes(r.kind) ? gasView(gases().indexOf(r)) : RV.CUM_KINDS.includes(r.kind) && !r.v.txt ? labList(+rs.dataset.res) : showResult(r); return; }
     if (e.target.closest('[data-gasv]')) { gasView(); return; }
     if (e.target.closest('[data-labv]')) { labList(); return; }
     const ob = e.target.closest('[data-o]'); if (ob) openForm(ob.dataset.o, ob);
@@ -419,14 +425,14 @@
     const sn = $('#since'); if (sn) sn.textContent = dur(now());
     $$('[data-sp]').forEach(b => b.classList.toggle('on', +b.dataset.sp === S.speed));
     const lc = $('#loc'); if (lc) lc.textContent = L.loc[S.flags.loc];
-    const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : L.bedED;
+    const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : S.flags.loc === 'WARD' ? L.loc.WARD : L.bedED;
     const mc = $('#mClk'); if (mc) mc.textContent = hhmm(C.startClock + now());
     renderChips();
   }
   /* top-bar chips: the latest blood gas, and the lab results (ready / ordered); they light up while something new is unread */
-  const GAS_KINDS = ['vbg', 'abg'], NOT_LAB = ['vbg', 'abg', 'neuro', 'io'];
+  const GAS_KINDS = ['vbg', 'abg'];
   const gases = () => S.res.filter(r => GAS_KINDS.includes(r.kind) && r.ready <= now());
-  const labs = () => S.res.filter(r => !NOT_LAB.includes(r.kind) && r.v);
+  const labs = () => S.res.filter(r => RV.CUM_KINDS.includes(r.kind) && !GAS_KINDS.includes(r.kind));
   function renderChips() {
     const gb = $('#gasBox'), lb = $('#labBox'); if (!gb || !lb) return;
     const g = gases(), l = labs(), lr = l.filter(r => r.ready <= now());
@@ -435,17 +441,20 @@
     if (l.length) { $('#labV').textContent = `${lr.length}/${l.length}`; lb.classList.toggle('new', lr.some(r => !r.viewed)); }
   }
   /* the results list, like the hospital system: every test ordered, newest first; ready ones open */
-  function labList() {
-    const he = LANG === 'he', t = now(), l = labs().slice().sort((a, b) => b.drawn - a.drawn || b.ready - a.ready);
-    const rows = l.map(r => {
-      const ok = r.ready <= t, ab = ok && r.kind !== 'ecg' && !r.v.txt && RV.abnormal && RV.abnormal(r.kind, r.v);
-      return `<tr class="${ok ? 'go' : 'pend'}${ok && !r.viewed ? ' unread' : ''}" ${ok ? `data-ri="${S.res.indexOf(r)}"` : ''}><td class="num">${hhmm(C.startClock + r.drawn)}</td><td>${esc(oname(r.kind))}</td><td>${ok ? (he ? 'סופי' : 'Final') + (ab ? ` <b class="abn">${he ? 'חריג' : 'Abnormal'}</b>` : '') : (he ? 'בתהליך' : 'Pending') + (r.ready - t <= 360 ? ` · ${hhmm(C.startClock + r.ready)}` : '')}</td></tr>`;
-    }).join('');
-    const md = modal(`<div class="emr"><div class="emr-h"><b>${he ? 'תוצאות מעבדה' : 'Laboratory results'}</b><span>${he ? 'ילד' : 'Boy'}, ${S.m.age}${he ? ' ש׳' : 'y'}</span></div>
-      <table class="emr-list"><thead><tr><th>${he ? 'נלקח' : 'Drawn'}</th><th>${he ? 'בדיקה' : 'Test'}</th><th>${he ? 'סטטוס' : 'Status'}</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, 'wide');
+  /* the cumulative lab window, like the hospital system: one column per sample time, newest first */
+  const caseDate = t => { const d = new Date(S.date0 + (C.startClock + t) * 60000), z = n => String(n).padStart(2, '0'); return { d: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`, D: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`, h: `${z(d.getHours())}:${z(d.getMinutes())}` }; };
+  const ptLine = () => { const he = LANG === 'he'; return `${he ? 'ילד' : 'Boy'}, ${S.m.age} ${he ? 'שנים' : 'y'}${S.flags.weighed ? ` · ${S.m.wt} ${he ? 'ק״ג' : 'kg'}` : ''}`; };
+  function labList(hlIx) {
+    const he = LANG === 'he', t = now(), by = {};
+    const ts = [...new Set(S.res.filter(r => RV.CUM_KINDS.includes(r.kind)).map(r => r.drawn))].sort((a, b) => a - b), key = {};
+    ts.forEach((x, i) => { key[x] = i && x - ts[i - 1] <= 5 ? key[ts[i - 1]] : x; });   // tubes drawn within a few minutes share a column
+    S.res.forEach((r, ix) => { if (!RV.CUM_KINDS.includes(r.kind)) return; (by[key[r.drawn]] = by[key[r.drawn]] || []).push({ kind: r.kind, v: r.v, pend: r.ready > t, ix }); if (r.ready <= t) r.viewed = true; });
+    const hlT = hlIx != null ? key[S.res[hlIx].drawn] : null;
+    const cols = Object.keys(by).map(Number).sort((a, b) => b - a).map(dt => Object.assign(caseDate(dt), { rs: by[dt], hl: dt === hlT }));
+    renderChips();
+    const md = modal(`${RV.cumulative(cols, { he, pt: ptLine(), name: oname })}<div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, 'chamw');
     md.el.addEventListener('click', e => {
-      const tr = e.target.closest('[data-ri]'); if (tr) { md.close(); showResult(S.res[+tr.dataset.ri], { back: labList }); return; }
+      const d = e.target.closest('[data-ri]'); if (d) { md.close(); showResult(S.res[+d.dataset.ri], { back: () => labList(hlIx) }); return; }
       if (e.target.closest('[data-x]') || e.target === md.el) md.close();
     });
   }
@@ -510,7 +519,7 @@
     const el = $('#situ'); if (!el || !S) return;
     const m = S.m, last = S.msgs[S.msgs.length - 1], rows = [];
     if (m.inf.main.rate) rows.push(['main', `${oname('main')}: ${L.fl[m.inf.main.base]}${m.inf.main.dex ? ' + D' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCl ' + m.inf.main.kcl : ''} · ${m.inf.main.rate} mL/h`]);
-    if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} u/kg/h (${r1(m.inf.insulin * m.wt)} u/h)`]);
+    if (m.inf.insulin) rows.push(['insDrip', `${oname('insDrip')}: ${m.inf.insulin} ${L.f.ukgh} (${r1(m.inf.insulin * m.wt)} ${L.uh})`]);
     m.inf.boluses.filter(b => b.left > 0).forEach(b => rows.push([null, `${oname('bolus')}: ${L.fl[b.fluid]} · ${Math.round(b.left)} mL`]));
     Object.entries(S.standing).forEach(([k, o]) => rows.push([k, `${oname(k)} · ${L.every(o.every / 60)}`]));
     const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays, cons: L.consSays };
@@ -530,13 +539,18 @@
     let preset = {};
     if (id === 'bolusNS' || id === 'bolusLR') { preset.fluid = id === 'bolusNS' ? 'NS' : 'LR'; id = 'bolus'; }
     const fields = FORMS[id];
+    if (!fields && PROC[id] && id !== 'iv') {
+      const PR = PROC[id], cm = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><p class="muted">${esc(L.procInfo(PR.by === 'md', PR.min))}</p><div class="row"><button class="btn primary" data-ok>${esc(L.order)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
+      cm.el.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { cm.close(); order(id); flash(btn); } else if (e.target.closest('[data-x]') || e.target === cm.el) cm.close(); });
+      return;
+    }
     if (!fields) { order(id); flash(btn); return; }
     const cur = id === 'main' && m.inf.main.rate ? m.inf.main : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : preset;
     const fieldHTML = ([k, kind, opt]) => {
-      const lbl = esc(L.f[k] || k), val = cur[k];
+      const lbl = esc({ mlkg: L.f.vol, mgkg: L.f.dose, gkg: L.f.dose, meqkg: L.f.dose, mmolkg: L.f.dose }[k] || L.f[k] || k), val = cur[k];
       if (kind === 'sel') return `<label>${lbl}<select name="${k}">${opt.map(v => `<option value="${v}"${String(val) === String(v) ? ' selected' : ''}>${esc(k === 'fluid' || k === 'base' ? L.fl[v] : k === 'mode' ? EXTRA[LANG].modes[v] : k === 'dex' ? (v ? 'D' + v + '%' : '—') : v)}</option>`).join('')}</select></label>`;
       if (kind === 'freq') return `<label>${esc(L.f.freq)}<select name="freq"><option value="0">${esc(L.once)}</option>${[1, 2, 4].map(h => `<option value="${h}">${esc(L.every(h))}</option>`).join('')}</select></label>`;
-      const unit = { mlkg: L.f.mlkg, over: '', rate: 'mL/h', dose: id === 'insDrip' ? L.f.ukgh : L.f.ukg, gkg: L.f.gkg, meqkg: L.f.meqkg, mmolkg: L.f.mmolkg }[k] || '';
+      const unit = { mlkg: L.f.mlkg, mgkg: L.f.mgkg, over: '', rate: L.mlh, dose: id === 'insDrip' ? L.f.ukgh : L.f.ukg, gkg: L.f.gkg, meqkg: L.f.meqkg, mmolkg: L.f.mmolkg }[k] || '';
       return `<label>${lbl}<span class="inp"><input name="${k}" type="number" step="any" inputmode="decimal" value="${val ?? opt}" dir="ltr"><small>${esc(unit)}</small></span></label>`;
     };
     const mt = M.maint(w), lo = Math.round(1.5 * mt), hi = Math.round(2 * mt);
@@ -557,7 +571,7 @@
   function showResult(r, o = {}) {
     if (!r || r.ready > now()) return;
     r.viewed = true; renderChips();
-    const he = LANG === 'he', d = new Date(), ctx = { he, pt: `${he ? 'ילד' : 'Boy'}, ${S.m.age}${he ? ' ש׳' : 'y'}${S.flags.weighed ? ' · ' + S.m.wt + ' kg' : ''}`, date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, time: hhmm(C.startClock + r.drawn), ready: hhmm(C.startClock + r.ready), seed: r.drawn, arterial: r.v.arterial };
+    const he = LANG === 'he', ctx = { he, pt: ptLine(), date: caseDate(r.drawn).D, time: hhmm(C.startClock + r.drawn), ready: hhmm(C.startClock + r.ready), seed: r.drawn, arterial: r.v.arterial, hb: r.v.hb };
     let body, cls = 'wide';
     if (r.kind === 'ecg') { const tx = RV.ecgText(r.v, he); body = `<span class="eyebrow">${esc(oname('ecg'))} · ${ctx.time}</span><div class="ecghd" dir="ltr"><b>${esc(tx.head)}</b><span>${esc(tx.interp)}</span><small>${esc(tx.note)}</small></div><div class="ecgpaper"><canvas id="ecgc"></canvas></div><p class="muted small" dir="ltr">25 mm/s · 10 mm/mV · 0.05–150 Hz</p>`; }
     else if (r.kind === 'vbg' || r.kind === 'abg') { body = RV.gasSlip(r.v, ctx); cls = 'gasp'; }
@@ -613,33 +627,35 @@
     add('weigh', 4, within('weigh', 15), 'Weigh on arrival (doses and the deficit depend on it).', 'שקילה בקבלה (המינונים והחסר תלויים בה).', 'prot');
     add('monitor', 4, within('monitor', 15), 'Full monitoring from the start (heart rhythm for potassium changes).', 'ניטור מלא מההתחלה (קצב הלב לשינויי אשלגן).', 'prot');
     add('labs0', 5, (within('vbg', 30) || within('chem', 30)) && (within('poc', 30) || within('bhb', 30) || within('ua', 30)), 'First bloods within 30 min: gas, electrolytes, glucose, ketones.', 'בדיקות ראשונות תוך 30 דקות: גזים, אלקטרוליטים, סוכר, קטונים.', 'prot');
+    const attBefore = t => S.att.some(a => a <= t && a >= t - 30);
     const bol = lg.filter(e => e.id === 'bolus' && e.t <= 120), bolKg = bol.reduce((a, e) => a + e.p.mlkg, 0);
     add('bolus', 8, null, `First hour: NaCl 0.9% 10 mL/kg over an hour (20 mL/kg only for severe dehydration with instability, with the attending). You gave ${r1(bolKg)} mL/kg.`, `שעה ראשונה: NaCl 0.9% 10 מ״ל/ק״ג במשך שעה (20 מ״ל/ק״ג רק בדהידרציה קשה עם חוסר יציבות, באישור כונן). ניתן: ${r1(bolKg)} מ״ל/ק״ג.`, 'prot',
-      !bol.length || bol[0].t > 30 ? 0 : bolKg >= 9 && bolKg <= 11 && bol.every(e => e.p.fluid === 'NS') ? 1 : bolKg > 11 && bolKg <= 21 ? (S.att.some(a => a <= bol[bol.length - 1].t) ? 0.8 : 0.5) : bolKg < 9 ? 0.5 : 0);
+      !bol.length || bol[0].t > 30 ? 0 : (bolKg >= 9 && bolKg <= 11 ? 1 : bolKg > 11 && bolKg <= 21 ? (attBefore(bol[bol.length - 1].t) ? 0.8 : 0.5) : bolKg < 9 ? 0.5 : 0) * (bol.every(e => e.p.fluid === 'NS') ? 1 : 0.7) * (bol.every(e => e.p.over >= 30) ? 1 : 0.4));
     const endT = Math.min(m.t, 12 * 60);
-    let rs = 0, rn = 0; for (let t = 120; t <= endT; t += 10) { const c = mainAt(t); if (c) { rs += c.rate; rn++; } }
+    let rs = 0, rn = 0; for (let t = 120; t <= endT; t += 10) { const c = mainAt(t); rs += c ? c.rate : 0; rn++; }
     const avg = rn ? rs / rn : 0, ratio = avg / mt;
     add('fluids', 10, null, `From hour 2: deficit over 48 h + maintenance ≈ 1.5–2× maintenance (${Math.round(1.5 * mt)}–${Math.round(2 * mt)} mL/h), NaCl 0.9%; never above 2× unless in shock. Your average: ${Math.round(avg)} mL/h (${r1(ratio)}×).`, `משעה שנייה: חסר על פני 48 שעות + אחזקה ≈ פי 1.5–2 מהאחזקה (${Math.round(1.5 * mt)}–${Math.round(2 * mt)} מ״ל/שע׳), NaCl 0.9%; לא יותר מפי 2 אלא בשוק. הממוצע שלך: ${Math.round(avg)} מ״ל/שע׳ (פי ${r1(ratio)}).`, 'prot',
       !mains.length || mains[0].t > 120 ? 0 : (ratio >= 1.4 && ratio <= 2.05 ? 0.8 : ratio > 2.05 && ratio <= 2.5 ? 0.3 : 0.2) + (mains.every(e => e.p.base === 'NS') ? 0.2 : 0));
-    const ins = lg.filter(e => e.id === 'insDrip'), ins0 = ins[0], attBefore = t => S.att.some(a => a <= t);
+    const ins = lg.filter(e => e.id === 'insDrip'), ins0 = ins[0];
     add('insStart', 10, null, 'Insulin infusion after the first hour of fluids, 0.05 units/kg/h (0.1 only with the attending), never as a bolus; not before potassium is at least 3.3.', 'עירוי אינסולין אחרי שעת הנוזלים הראשונה, 0.05 יח׳/ק״ג/שע׳ (0.1 רק באישור כונן), אף פעם לא בבולוס; לא לפני שהאשלגן לפחות 3.3.', 'prot',
       !ins0 ? 0 : (ins0.t - fluidStart >= 45 && ins0.t - fluidStart <= 150 ? 0.5 : 0.15) + (Math.abs(ins0.p.dose - 0.05) < 0.011 || (Math.abs(ins0.p.dose - 0.1) < 0.011 && attBefore(ins0.t)) ? 0.3 : 0) + (did('insBolus') ? 0 : 0.2));
     const maxIns = Math.max(0, ...ins.map(e => e.p.dose));
-    let offAcid = 0; for (let t = 120; t < m.t; t += 10) if (insAt(t) === 0 && !did('scRapid') && (m.hist.find(h => h.t >= t) || {}).pH < 7.3) offAcid += 10;
+    let offAcid = 0; for (let t = 120; t < m.t; t += 10) if (insAt(t) === 0 && (m.hist.find(h => h.t >= t) || {}).pH < 7.3) offAcid += 10;
     add('insMgmt', 6, maxIns <= 0.1 + 1e-9 && (maxIns < 0.099 || attBefore(ins.find(e => e.p.dose >= 0.099).t)) && offAcid <= 60, 'Keep the drip at 0.05–0.1 units/kg/h until the acidosis is over; do not leave it off for long while still acidotic.', 'להשאיר עירוי 0.05–0.1 יח׳/ק״ג/שע׳ עד תיקון החמצת; לא להשאיר אותו כבוי זמן רב כשעדיין יש חמצת.', 'prot');
     /* potassium against the results the learner had */
     let kOk = 1; const kNotes = [];
     /* potassium goes in with the maintenance fluids: judged from the later of the first K below 5 and the start of those fluids */
-    const k50 = firstRes(v => v.K != null && v.K < 5), mStart = mains.length ? mains[0].t : null;
-    if (k50 && mStart != null) { const t0 = Math.max(k50.ready, mStart); const c = lg.find(e => e.t >= t0 - 5 && e.t <= t0 + 60 && ((e.id === 'main' && e.p.kcl >= 40) || e.id === 'kpo')) || (mainAt(t0 + 60) && mainAt(t0 + 60).kcl >= 40); if (!c) { kOk -= 0.5; kNotes.push('K<5 → KCl 40'); } }
-    const k35 = firstRes(v => v.K != null && v.K < 3.5);
-    if (k35) { const c = lg.find(e => e.t >= k35.ready && e.t <= k35.ready + 60 && ((e.id === 'main' && e.p.kcl >= 60) || e.id === 'kpo')) || (mainAt(k35.ready) && mainAt(k35.ready).kcl >= 60); if (!c) { kOk -= 0.4; kNotes.push('K<3.5 → 60/L or PO'); } }
+    const hK = th => m.hist.find(h => h.K < th), hit = (r, h) => r && h ? Math.min(r.ready, h.t + 90) : r ? r.ready : h ? h.t + 90 : null;
+    const k50 = hit(firstRes(v => v.K != null && v.K < 5.5), hK(5.5)), mStart = mains.length ? mains[0].t : null;
+    if (k50 != null && mStart != null) { const t0 = Math.max(k50, mStart); const c = lg.find(e => e.t >= t0 - 5 && e.t <= t0 + 60 && ((e.id === 'main' && e.p.kcl >= 40) || e.id === 'kpo')) || (mainAt(t0 + 60) && mainAt(t0 + 60).kcl >= 40); if (!c) { kOk -= 0.5; kNotes.push('K<5.5 → KCl 40'); } }
+    const k35 = hit(firstRes(v => v.K != null && v.K < 3.5), hK(3.5));
+    if (k35 != null) { const c = lg.find(e => e.t >= k35 && e.t <= k35 + 60 && ((e.id === 'main' && e.p.kcl >= 60) || e.id === 'kpo')) || (mainAt(k35) && mainAt(k35).kcl >= 60); if (!c) { kOk -= 0.4; kNotes.push('K<3.5 → 60/L or PO'); } }
     if (res.some(r => r.v.K > 5.5 && mainAt(r.ready) && mainAt(r.ready).kcl > 0)) { kOk -= 0.3; kNotes.push('K>5.5 with KCl running'); }
     if (Math.min(...m.hist.map(h => h.K)) < 2.8) kOk -= 0.3;
     add('potassium', 10, null, 'Potassium: K above 5.5 → wait for urine and K below 5; 3.5–5.5 → KCl 40 mEq/L; below 3.5 → 60 mEq/L (or add oral potassium); peripheral line up to 40–60 mEq/L.', 'אשלגן: מעל 5.5 → להמתין למתן שתן ולירידה מתחת ל-5; 3.5–5.5 → KCl 40 מא״ק/ל׳; מתחת ל-3.5 → 60 מא״ק/ל׳ (או תוספת פומית); בווריד פריפרי עד 40–60 מא״ק/ל׳.', 'prot', Math.max(0, kOk));
-    let dOk = 1; const g300 = firstRes(v => v.G != null && v.G < 300), g180 = firstRes(v => v.G != null && v.G < 180);
-    if (g300 && !(mainAt(g300.ready + 60) && mainAt(g300.ready + 60).dex >= 5)) dOk -= 0.5;
-    if (g180 && !(mainAt(g180.ready + 60) && mainAt(g180.ready + 60).dex >= 10)) dOk -= 0.5;
+    let dOk = 1; const hG = th => m.hist.find(h => h.G < th), g300 = hit(firstRes(v => v.G != null && v.G < 300), hG(300)), g180 = hit(firstRes(v => v.G != null && v.G < 180), hG(180));
+    if (g300 != null && !(mainAt(g300 + 60) && mainAt(g300 + 60).dex >= 5)) dOk -= 0.5;
+    if (g180 != null && !(mainAt(g180 + 60) && mainAt(g180 + 60).dex >= 10)) dOk -= 0.5;
     add('dextrose', 10, null, 'Add dextrose as glucose falls: below 300 → NaCl 0.9% + D5; below 180 → D10; target 150–250 mg/dL.', 'להוסיף גלוקוז כשהסוכר יורד: מתחת ל-300 → NaCl 0.9% + D5; מתחת ל-180 → D10; יעד 150–250 מ״ג/ד״ל.', 'prot', Math.max(0, dOk));
     const gmin = Math.min(...m.hist.map(h => h.G));
     add('hypo', 6, gmin >= 70, `No hypoglycemia (lowest glucose ${Math.round(gmin)} mg/dL). Below 60: call the attending.`, `ללא היפוגליקמיה (הסוכר הנמוך ביותר ${Math.round(gmin)} מ״ג/ד״ל). מתחת ל-60: ייעוץ כונן.`, 'prot');
@@ -663,7 +679,7 @@
     add('exit', 6, !!exitOk, 'Leaving DKA: pH above 7.3 and HCO₃ above 18, eating without nausea; rapid insulin SC right before a meal, then stop the drip. Not in the middle of the night.', 'יציאה מ-DKA: pH מעל 7.3 ו-HCO₃ מעל 18, אוכל בלי בחילה; אינסולין מהיר תת-עורי מיד לפני ארוחה, ואז להפסיק את העירוי. לא באמצע הלילה.', 'prot');
     const ceMin = m.hist.filter(h => h.ce > 0.35).length * 5;
     add('brain', 8, ceMin <= 60, `Neurological outcome: ${ceMin ? `signs of raised intracranial pressure for about ${dur(ceMin)} h` : 'no lasting signs of raised intracranial pressure'}.`, `תוצאה נוירולוגית: ${ceMin ? `סימני לחץ תוך-גולגולתי מוגבר במשך כ-${dur(ceMin)} שע׳` : 'ללא סימנים ממושכים של לחץ תוך-גולגולתי מוגבר'}.`, 'prot');
-    const extra = lg.filter(e => UNNEEDED[e.id] != null).map(e => e.id), pen = [...new Set(extra)].reduce((a, k) => a + UNNEEDED[k], 0);
+    const extra = lg.filter(e => UNNEEDED[e.id] != null && !(['intub', 'midaz'].includes(e.id) && (e.ce ?? 0) >= 0.55)).map(e => e.id), pen = [...new Set(extra)].reduce((a, k) => a + UNNEEDED[k], 0);
     const stopped = [...new Set(lg.filter(e => e.id === 'objected' && !extra.includes(e.p.k)).map(e => e.p.k))], pen2 = stopped.reduce((a, k) => a + Math.ceil((UNNEEDED[k] || 2) / 2), 0);
     if (stopped.length) add('stopped', 0, false, `The attending stopped: ${stopped.map(oname).join(', ')} (−${pen2}). Think it through before ordering.`, `הכונן עצר: ${stopped.map(oname).join(', ')} (מינוס ${pen2}). לחשוב לפני שמזמינים.`, 'nelson');
     if (extra.length) add('extra', 0, false, `Unnecessary interventions: ${[...new Set(extra)].map(oname).join(', ')} (−${pen}).`, `התערבויות מיותרות: ${[...new Set(extra)].map(oname).join(', ')} (מינוס ${pen}).`, 'nelson');
@@ -683,7 +699,7 @@
   }
   function endCase() {
     if (!S || S.ended) return;
-    S.ended = true; S.speed = 0; stopLoop();
+    S.ended = true; S.speed = 0; stopLoop(); $$('.scrim').forEach(x => x.remove());
     const { R, pct } = rubric(), SRC = C.src;
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
       <div class="score"><b>${pct}%</b><span>${esc(L.survived)}: ${S.m.dead ? '✗' : '✓'} · ${esc(dur(S.m.t))}</span></div>

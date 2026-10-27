@@ -82,9 +82,84 @@
       }).join('');
       return `<div class="emr">${head}<div class="emr-t">${esc(P[he ? 'he' : 'en'])}</div><table><thead><tr><th>${he ? 'בדיקה' : 'Test'}</th><th>${he ? 'תוצאה' : 'Result'}</th><th></th><th>${he ? 'יחידות' : 'Units'}</th><th>${he ? 'ערכי ייחוס' : 'Reference'}</th></tr></thead><tbody>${rows}</tbody></table>${P.text ? `<p class="emr-x">${esc(P.text[he ? 'he' : 'en'])}</p>` : ''}</div>`;
     }
-    const titles = { ua: ['Urinalysis', 'בדיקת שתן'], tns: ['Blood bank', 'בנק הדם'], bcx: ['Microbiology · blood culture', 'מיקרוביולוגיה · תרבית דם'], cxr: ['Radiology · chest X-ray', 'רנטגן · צילום חזה'], usabd: ['Radiology · ultrasound', 'דימות · אולטרסאונד'], ct: ['Radiology · CT', 'דימות · CT'], csf: ['Microbiology · CSF', 'מיקרוביולוגיה · נוזל שדרה'] }[kind] || [kind, kind];
+    const titles = { ua: ['Urinalysis', 'בדיקת שתן'], tns: ['Blood bank', 'בנק הדם'], bcx: ['Microbiology · blood culture', 'מיקרוביולוגיה · תרבית דם'], cxr: ['Radiology · chest X-ray', 'רנטגן · צילום חזה'], usabd: ['Radiology · ultrasound', 'דימות · אולטרסאונד'], ct: ['Radiology · CT', 'דימות · CT'], csf: ['Microbiology · CSF', 'מיקרוביולוגיה · נוזל שדרה'], dmwab: ['Immunology · diabetes autoantibodies', 'אימונולוגיה · נוגדנים לסוכרת'] }[kind] || [kind, kind];
     return `<div class="emr">${head}<div class="emr-t">${esc(titles[he ? 1 : 0])}</div><p class="emr-x">${esc(v.txt)}</p></div>`;
   }
+
+  /* ---------- cumulative results window, like the hospital system: one column per sample time (newest first),
+     tests grouped in sections with units and reference ranges; L/H in a yellow pill, panic values in red ---------- */
+  const BE = v => v.pH != null && v.HCO3 != null ? 0.93 * (v.HCO3 - 24.4 + 14.8 * (v.pH - 7.4)) : null;
+  const OSM = v => v.Na != null && v.G != null && v.BUN != null ? 2 * v.Na + v.G / 18 + v.BUN / 2.8 : null;
+  /* rows: [label, unit, lo, hi, dp, panicLo, panicHi, value(v), kinds (default: the section's)] */
+  const CH = ['chem'], k = key => v => v[key];
+  const CUM = [
+    { he: 'ביוכימיה בדם', en: 'Blood chemistry', kinds: ['chem', 'lft', 'lipase', 'cbc', 'dmw'], rows: [
+      ['Sodium-B', 'mmol/L', 135, 145, 0, 120, 160, k('Na'), CH], ['Potassium-B', 'mmol/L', 3.5, 5.1, 1, 2.5, 6.5, k('K'), CH],
+      ['Chloride-B', 'mmol/L', 98, 107, 0, null, null, k('Cl'), CH], ['Bicarbonate-B', 'mmol/L', 22, 29, 1, 10, null, k('HCO3'), CH],
+      ['Anion gap-B', 'mmol/L', 8, 16, 0, null, null, k('AG'), CH], ['Glucose-B', 'mg/dL', 70, 110, 0, 50, 500, k('G'), CH],
+      ['Urea-B', 'mg/dL', 15, 40, 1, null, null, v => v.BUN != null ? v.BUN * 2.14 : null, CH], ['Creatinine-B', 'mg/dL', 0.3, 0.7, 2, null, null, k('Cr'), CH],
+      ['Calcium-B', 'mg/dL', 8.8, 10.8, 1, 6.5, 13, k('Ca'), CH], ['Phosphorous-B', 'mg/dL', 3.7, 5.6, 1, 1, null, k('P'), CH],
+      ['Magnesium-B', 'mg/dL', 1.7, 2.3, 2, 1, null, k('Mg'), CH], ['Osmolality calculated-B', 'mOsm/Kg', 275, 295, 0, null, 330, OSM, CH],
+      ['ALT-B', 'U/L', 5, 30, 0, null, null, k('ALT'), ['lft']], ['AST-B', 'U/L', 10, 40, 0, null, null, k('AST'), ['lft']],
+      ['Bilirubin Total-B', 'mg/dL', 0.2, 1.2, 1, null, null, k('BIL'), ['lft']], ['Albumin-B', 'g/dL', 3.5, 5, 1, null, null, k('ALB'), ['lft']],
+      ['Lipase-B', 'U/L', 0, 60, 0, null, null, k('LIP'), ['lipase']], ['Amylase-B', 'U/L', 25, 125, 0, null, null, k('AMY'), ['lipase']],
+      ['CRP-B', 'mg/L', 0, 5, 1, null, null, v => v.CRP != null ? v.CRP * 10 : null, ['cbc']],
+      ['HbA1c', '%', 4, 5.6, 1, null, null, k('A1C'), ['dmw']], ['TSH', 'mIU/L', 0.5, 4.5, 2, null, null, k('TSH'), ['dmw']], ['Anti tTG IgA', 'U/mL', 0, 10, 0, null, null, k('TTG'), ['dmw']]
+    ] },
+    { he: 'בדיקות גזים', en: 'Blood gases', kinds: ['vbg', 'abg'], rows: [
+      ['pH-WB', '', 7.31, 7.41, 3, 7.0, 7.6, k('pH')], ['pCO2-WB', 'mmHg', 40, 52, 1, null, null, k('pCO2')], ['HCO3-WB', 'mmol/L', 22, 26, 1, 10, null, k('HCO3')],
+      ['ABE-WB', 'mmol/L', -2, 2, 1, null, null, BE], ['Sodium-WB', 'mmol/L', 135, 145, 0, 120, 160, k('Na')], ['Potassium-WB', 'mmol/L', 3.5, 5.1, 1, 2.5, 6.5, k('K')],
+      ['Chloride-WB', 'mmol/L', 98, 107, 0, null, null, k('Cl')], ['Glucose-WB', 'mg/dL', 70, 110, 0, 50, 500, k('G')], ['Lactate-WB', 'mmol/L', 0.5, 2.2, 1, null, 4, k('lact')]
+    ] },
+    { he: 'המטולוגיה', en: 'Hematology', kinds: ['cbc'], rows: [
+      ['WBC', '10^3/µL', 4.5, 13.5, 1, 1, 30, k('WBC')], ['Neutrophils %', '%', 40, 75, 0, null, null, k('NEU')], ['HGB', 'g/dL', 11.5, 15.5, 1, 7, 20, k('HGB')],
+      ['HCT', '%', 35, 45, 0, null, null, k('HCT')], ['MCV', 'fL', 77, 95, 0, null, null, k('MCV')], ['PLT', '10^3/µL', 150, 450, 0, 50, 1000, k('PLT')]
+    ] },
+    { he: 'קרישה', en: 'Coagulation', kinds: ['coag'], rows: [
+      ['PT', 'sec', 11, 14, 1, null, null, k('PT')], ['INR', '', 0.8, 1.2, 2, null, 4, k('INR')], ['PTT', 'sec', 25, 36, 1, null, 100, k('PTT')], ['Fibrinogen', 'mg/dL', 200, 400, 0, 100, null, k('FIB')]
+    ] }
+  ];
+  const TXT = ['ua', 'tns', 'bcx', 'csf', 'dmwab', 'cxr', 'usabd', 'ct'];
+  /* cols: [{ d: 'dd/mm/yy', h: 'hh:mm', hl, rs: [{ kind, v, pend, ix }] }], newest first; ctx.name(kind) names a text result */
+  function cumulative(cols, ctx) {
+    const he = ctx.he;
+    const cell = (x, R, hl) => {
+      const lo = R[2], hi = R[3], dp = R[4], pl = R[5], ph = R[6];
+      const f = pl != null && x < pl ? 'PL' : ph != null && x > ph ? 'PH' : x < lo ? 'L' : x > hi ? 'H' : '';
+      const cls = (hl ? 'hl ' : '') + (f ? (f[0] === 'P' ? 'cpan' : 'cabn') : '');
+      return `<td class="${cls}"><span>${fx(x, dp)}</span>${f ? `<i>${f.endsWith('L') ? '↓' : '↑'}</i>` : ''}</td>`;
+    };
+    const head = `<tr><th class="tn">${he ? 'בדיקות' : 'Tests'}</th><th>${he ? 'יחידות' : 'Units'}</th><th>${he ? 'ערכי ייחוס' : 'Reference'}</th>${cols.map(c => `<th class="${c.hl ? 'hl' : ''}">${c.d}<br>${c.h}</th>`).join('')}</tr>`;
+    const span = 3 + cols.length;
+    let body = '';
+    CUM.forEach(sec => {
+      if (!cols.some(c => c.rs.some(r => sec.kinds.includes(r.kind)))) return;
+      let rows = '';
+      sec.rows.forEach(R => {
+        const kinds = R[8] || sec.kinds;
+        const vals = cols.map(c => {
+          const r = c.rs.find(r => kinds.includes(r.kind) && !r.pend && R[7](r.v) != null);
+          return r ? R[7](r.v) : c.rs.some(r => kinds.includes(r.kind) && r.pend) ? '…' : null;
+        });
+        if (vals.every(x => x == null)) return;
+        rows += `<tr><td class="tn"><u>${esc(R[0])}</u></td><td class="u">${esc(R[1])}</td><td class="rg">${R[2]}-${R[3]}</td>${vals.map((x, i) => x == null ? `<td class="${cols[i].hl ? 'hl' : ''}"></td>` : x === '…' ? `<td class="pend${cols[i].hl ? ' hl' : ''}">…</td>` : cell(x, R, cols[i].hl)).join('')}</tr>`;
+      });
+      if (rows) body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${esc(he ? sec.he : sec.en)}</span></td></tr>` + rows;
+    });
+    const tcols = cols.map(c => c.rs.filter(r => TXT.includes(r.kind)));
+    const tk = [...new Set(tcols.flat().map(r => r.kind))];
+    if (tk.length) {
+      body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${he ? 'שתן, מיקרוביולוגיה, בנק דם ודימות' : 'Urine, microbiology, blood bank, imaging'}</span></td></tr>`;
+      tk.forEach(kd => {
+        body += `<tr><td class="tn" colspan="3"><u dir="auto">${esc(ctx.name(kd))}</u></td>${tcols.map((rs, i) => { const r = rs.find(r => r.kind === kd); return `<td class="${cols[i].hl ? 'hl' : ''}">${!r ? '' : r.pend ? '<span class="pend">…</span>' : `<button class="ch-doc" data-ri="${r.ix}" title="${esc(ctx.name(kd))}">📄</button>`}</td>`; }).join('')}</tr>`;
+      });
+    }
+    const legend = ['L', 'H', 'VL', 'VH', 'PL', 'PH'].map(x => `<b class="lg-${x}">${x}</b>`).join('');
+    return `<div class="cham" dir="ltr"><div class="ch-title"><i>e</i><span dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</span> -- Webpage Dialog</div>
+      <div class="ch-bar"><div class="ch-legend">${legend}</div><span class="ch-pt" dir="rtl">${esc(ctx.pt)}</span><span class="ch-sel" dir="rtl">${he ? '-כל המדבקות-' : '-All labels-'} ▾</span></div>
+      <div class="ch-ser" dir="rtl">${he ? 'סידרה 1 מתוך 1' : 'Series 1 of 1'}</div>
+      <div class="ch-scroll">${body ? `<table class="ch-t"><thead>${head}</thead><tbody>${body}</tbody></table>` : `<p class="ch-empty" dir="rtl">${he ? 'אין עדיין תוצאות' : 'No results yet'}</p>`}</div></div>`;
+  }
   function abnormal(kind, v) { const P = PANELS[kind]; return !!P && P.keys.some(k => v[k] != null && REF[k] && (+v[k] < REF[k][3] || +v[k] > REF[k][4])); }
-  window.RV = { ecg12, ecgText, gasSlip, meter, report, abnormal };
+  window.RV = { ecg12, ecgText, gasSlip, meter, report, abnormal, cumulative, CUM_KINDS: CUM.flatMap(x => x.kinds).concat(TXT) };
 })();
