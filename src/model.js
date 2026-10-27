@@ -113,7 +113,7 @@
     const prod = 60 * (1 - 0.8 * clamp(I / 0.05, 0, 1));
     const brain = 40 * clamp(s.G / 80, 0, 1);
     const upt = 200 * sens * fI * s.G / (s.G + 300);
-    const renal = s.G > 180 ? 0.25 * (s.G - 180) * s.perf * clamp(0.6 + 0.4 * (1 - s.defPct / 8.5), 0.6, 1) : 0;
+    const renal = s.G > 180 ? (0.25 * (s.G - 180) + 0.35 * Math.max(0, s.G - 450)) * s.perf * clamp(0.6 + 0.4 * (1 - s.defPct / 8.5), 0.6, 1) : 0;
     const gir = dexMg / w / dt;
     const ecf = s.wt0 * 250 - s.deficit * 0.6;
     s.G += (prod - brain - upt - renal + 30 * gir) * h;
@@ -121,8 +121,8 @@
     s.G *= ecf / Math.max(1000, ecf - insens * h);
     s.G = Math.max(20, s.G);
     /* ketoacids: production stops with even a low insulin effect (Nelson: 0.02–0.05 u/kg/h), clearance needs insulin and perfusion */
-    const prodA = 1.2 * (1 - clamp(I / 0.035, 0, 1));
-    const clearA = (0.05 + 0.15 * clamp(I / 0.05, 0, 1)) * s.A * Math.sqrt(s.perf);
+    const prodA = 1.2 * (1 - clamp(I / 0.035, 0, 1)) * clamp(0.35 + 0.65 * s.defPct / 8.5, 0.35, 1);
+    const clearA = (0.065 + 0.135 * clamp(I / 0.05, 0, 1)) * s.A * Math.sqrt(s.perf);
     s.A = Math.max(0, s.A + (prodA - clearA) * h - (s.bicarbNow || 0));
     s.bicarbNow = 0;
     /* hyperchloremia from chloride-rich fluids, slowly excreted */
