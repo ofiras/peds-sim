@@ -51,7 +51,7 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(88 + 4 * defPct + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 70 * ceS + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    s.HR = Math.round(88 + 4 * defPct + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * ceS + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
     s.RR = s.vent ? 22 : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
@@ -63,7 +63,7 @@
     if (s.pH < 7.1) g--;
     if (s.eOsm > 330) g--;
     if (s.G < 50) g -= 2; if (s.G < 35) g -= 4;
-    g -= Math.round(Math.max(0, s.ce - 0.15) * 11);
+    g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0);
     s.GCS = clamp(g, 3, 15);
     s.pupils = s.ce > 0.7 ? 'unequal' : s.ce > 0.5 ? 'sluggish' : 'normal';
     s.headache = s.ce > 0.1;
@@ -146,6 +146,9 @@
       if (s.ce >= (s.vent ? 1.05 : 0.95)) { if (s.arrestAt == null) s.arrestAt = s.t; else if (s.t - s.arrestAt >= 10) { s.dead = true; s.deadAt = s.t; } }
       else s.arrestAt = null;
     }
+    /* deep hypoglycemia that lasts injures the brain; so does a herniation */
+    if (s.G < 40) { s.hypoMin = (s.hypoMin || 0) + dt; if (s.hypoMin > 30) s.injury = Math.min(8, (s.injury || 0) + 0.05 * dt); }
+    if (s.arrestAt != null) s.injury = Math.max(s.injury || 0, 3);
     derive(s);
     /* hourly record: glucose fall, osmolality fall, corrected sodium trend (risk) */
     if (s.t - s.io.hourMark >= 60) {

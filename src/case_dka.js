@@ -19,6 +19,10 @@ window.CASE_DKA = {
       cvc: 'A central line is not needed here: two good peripheral lines are enough, and DKA raises the risk of line-related thrombosis.',
       prbc: 'Hemoglobin is 15 and nothing is bleeding: there is no indication for blood.', ffp: 'No bleeding and no coagulopathy: there is no indication for plasma.', plt: 'Platelets are normal: there is no indication for a platelet transfusion.',
       ward: 'pH below 7.1 is severe DKA: he goes to the PICU, not the ward.',
+      bolusFast: 'Not that much or that fast in DKA: rapid large boluses raise the risk of cerebral edema. 10 mL/kg over an hour, unless he is in shock.',
+      ctNoSigns: 'He has no neurological signs. A CT is not needed now, and it means radiation and leaving the unit with an unstable patient.',
+      insBolus: 'No insulin bolus in DKA: start the drip at 0.05 units/kg/h after the first hour of fluids.',
+      bicarb: 'No bicarbonate in DKA: it worsens hypokalemia and raises the risk of cerebral edema. The acidosis corrects with fluids and insulin.',
       intub: 'Do not intubate him for the acidosis: his deep breathing is compensating, and after intubation the pH falls further unless you match that ventilation. Intubate only for airway protection.'
     },
     consult: {
@@ -39,6 +43,10 @@ window.CASE_DKA = {
       cvc: 'אין צורך בצנתר מרכזי: שני עירויים פריפריים טובים מספיקים, ו-DKA מעלה את הסיכון לפקקת סביב צנתר.',
       prbc: 'ההמוגלובין 15 ואין דימום: אין התוויה למתן דם.', ffp: 'אין דימום ואין הפרעת קרישה: אין התוויה לפלזמה.', plt: 'הטסיות תקינות: אין התוויה למתן טסיות.',
       ward: 'pH מתחת ל-7.1 זה DKA קשה: הוא עובר לטיפול נמרץ, לא למחלקה.',
+      bolusFast: 'לא כל כך הרבה ולא כל כך מהר ב-DKA: בולוסים גדולים ומהירים מעלים סיכון לבצקת מוחית. 10 מ״ל/ק״ג במשך שעה, אלא אם הוא בשוק.',
+      ctNoSigns: 'אין לו סימנים נוירולוגיים. CT לא נדרש כעת, ומשמעותו קרינה ויציאה מהיחידה עם חולה לא יציב.',
+      insBolus: 'אין בולוס אינסולין ב-DKA: מתחילים עירוי 0.05 יח׳/ק״ג/שע׳ אחרי השעה הראשונה של הנוזלים.',
+      bicarb: 'אין ביקרבונט ב-DKA: מחמיר היפוקלמיה ומעלה סיכון לבצקת מוחית. החמצת מתוקנת עם נוזלים ואינסולין.',
       intub: 'אל תנשימו אותו בגלל החמצת: הנשימה העמוקה מפצה, ואחרי אינטובציה ה-pH יורד עוד אם לא מתאימים את ההנשמה. אינטובציה רק להגנה על נתיב האוויר.'
     },
     consult: {

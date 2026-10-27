@@ -1159,7 +1159,7 @@ svg.tl .tlbt{font-size:9px}svg.tl .tlbt.ok{fill:var(--good)}svg.tl .tlbt.bad{fil
 .phome .sub{color:var(--mut);font-size:17px}
 .lvpick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .lvpick small{flex-basis:100%;color:var(--mut)}
-.pill{border:1px solid var(--line2);border-radius:999px;padding:6px 14px;font-weight:700;cursor:pointer;background:var(--panel2)}.pill input{display:none}.pill.on{border-color:var(--accent);color:var(--accent)}
+.pill{border:1px solid var(--line2);border-radius:999px;padding:6px 14px;font-weight:700;cursor:pointer;background:var(--panel2)}.pill input{display:none}.pill.on{border-color:var(--accent);color:var(--ink);background:var(--accent)}.pill.on::before{content:'✓ '}
 .ccard{display:grid;gap:6px;text-align:start;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);border-radius:18px;padding:18px;cursor:pointer}
 .ccard:hover{border-color:var(--accent)}
 .ccard b{font-family:var(--display);font-size:28px;font-weight:800;text-transform:uppercase;line-height:1}
@@ -1243,6 +1243,7 @@ select.ch-sel{font:12.5px 'Heebo',Arial,sans-serif;cursor:pointer}
 @media (min-width:900px){ .console .situ{height:250px;overflow-y:auto;align-content:start} }
 #flow td.go{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 #flow td.go:hover{background:rgba(255,255,255,.08)}
+@media (max-width:720px){ .simbar .ttl b{white-space:normal;font-size:15px;line-height:1.1;overflow:visible} }
 .objq{font-size:16px;line-height:1.55;margin:10px 0 4px}
 .nvc{font-family:var(--mono);font-size:13px;color:var(--mut);align-self:center}
 .emr-x{white-space:pre-line;padding:8px 12px 12px;margin:0}

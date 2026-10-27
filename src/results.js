@@ -36,13 +36,13 @@
   const sev = P => 1 / (1 + 23400 / (P * P * P + 150 * P));
   function gasSlip(v, ctx) {
     const be = 0.93 * (v.HCO3 - 24.4 + 14.8 * (v.pH - 7.4)), po2 = ctx.arterial ? 95 : 38 + (ctx.seed % 7), so2 = Math.min(99.5, sev(po2) * 100), hb = ctx.hb || 14.8;
-    const row = (n, x, dp, u, rg) => `<div class="gr"><span>${n}</span><b>${(+x).toFixed(dp)}<i>${rg ? (x < rg[0] ? '↓' : x > rg[1] ? '↑' : '') : ''}</i></b><em>${u}</em></div>`;
+    const row = (n, x0, dp, u, rg) => { const x = +(+x0).toFixed(dp); return `<div class="gr"><span>${n}</span><b>${x.toFixed(dp)}<i>${rg ? (x < rg[0] ? '↓' : x > rg[1] ? '↑' : '') : ''}</i></b><em>${u}</em></div>`; };   // flagged on the printed value, same ranges as the lab
     return `<div class="paper" dir="ltr" lang="en">
       <div class="gh"><b>${ctx.arterial ? 'ARTERIAL' : 'VENOUS'} SAMPLE</b><span>${ctx.date}</span><span>${ctx.time}</span><span>System Name</span><span>${esc(ctx.unit || 'PEDS ED')}</span><span>Patient</span><span>${esc(ctx.ptEn || ctx.pt)}</span></div>
-      <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', ctx.arterial ? [7.35, 7.45] : [7.32, 7.42])}${row('pCO₂', v.pCO2, 1, 'mmHg', ctx.arterial ? [35, 45] : [40, 50])}${row('pO₂', po2, 1, 'mmHg', ctx.arterial ? [80, 100] : [30, 50])}${row('HCO₃⁻ act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('BE(B)', be, 1, 'mmol/L', [-2, 2])}
+      <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', ctx.arterial ? [7.35, 7.45] : [7.31, 7.41])}${row('pCO₂', v.pCO2, 1, 'mmHg', ctx.arterial ? [35, 45] : [40, 52])}${row('pO₂', po2, 1, 'mmHg', ctx.arterial ? [80, 100] : [30, 50])}${row('HCO₃⁻ act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('BE(B)', be, 1, 'mmol/L', [-2, 2])}
       <h4>CO-OXIMETRY</h4>${row('Hct', hb * 3, 0, '%', [35, 45])}${row('tHb', hb, 1, 'g/dL', [11.5, 15.5])}${row('sO₂', so2, 1, '%', ctx.arterial ? [95, 100] : [60, 80])}
-      <h4>ELECTROLYTES</h4>${row('Na⁺', v.Na, 1, 'mmol/L', [135, 145])}${row('K⁺', v.K, 2, 'mmol/L', [3.5, 5])}${row('Ca⁺⁺', 1.16, 2, 'mmol/L', [1.12, 1.32])}${row('Cl⁻', v.Cl, 0, 'mmol/L', [98, 107])}${row('AnGap', v.AG, 1, 'mmol/L', [8, 16])}
-      <h4>METABOLITES</h4>${row('Glu', v.G, 0, 'mg/dL', [70, 140])}${row('Lac', v.lact, 2, 'mmol/L', [0.5, 2])}
+      <h4>ELECTROLYTES</h4>${row('Na⁺', v.Na, 1, 'mmol/L', [135, 145])}${row('K⁺', v.K, 2, 'mmol/L', [3.5, 5.1])}${row('Ca⁺⁺', 1.16, 2, 'mmol/L', [1.12, 1.32])}${row('Cl⁻', v.Cl, 0, 'mmol/L', [98, 107])}${row('AnGap', v.AG, 1, 'mmol/L', [8, 16])}
+      <h4>METABOLITES</h4>${row('Glu', v.G, 0, 'mg/dL', [70, 110])}${row('Lac', v.lact, 2, 'mmol/L', [0.5, 2.2])}
       <div class="gf">↑, ↓ – Out of range</div></div>`;
   }
 
@@ -147,8 +147,8 @@
   }
   function cumulative(cols0, ctx) {
     const he = ctx.he, G = grid(cols0, ctx), cols = cols0.filter((c, i) => G.keep[i]), K = v => v.filter((x, i) => G.keep[i]);
-    const cell = (x, R, hl) => {
-      const lo = R[2], hi = R[3], dp = R[4], pl = R[5], ph = R[6];
+    const cell = (x0, R, hl) => {
+      const lo = R[2], hi = R[3], dp = R[4], pl = R[5], ph = R[6], x = +(+x0).toFixed(dp);
       const f = pl != null && x < pl ? 'PL' : ph != null && x > ph ? 'PH' : x < lo ? 'L' : x > hi ? 'H' : '';
       const cls = (hl ? 'hl ' : '') + (f ? (f[0] === 'P' ? 'cpan' : 'cabn') : '');
       return `<td class="${cls}"><span>${fx(x, dp)}</span>${f ? `<i>${f.endsWith('L') ? '↓' : '↑'}</i>` : ''}</td>`;
