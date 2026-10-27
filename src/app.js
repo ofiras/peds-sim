@@ -109,7 +109,8 @@
       modes: { nc: 'משקפי חמצן', mask: 'מסכה', nrb: 'מסכה עם שקית', hfnc: 'זרימה גבוהה' } }
   };
   const oname = id => L.o[id] || EXTRA[LANG][id] || id;
-  const LAB_DELAY = { poc: 2, vbg: 10, abg: 10, chem: 40, bhb: 5, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 5, dmw: 2880, cxr: 30, usabd: 60, ct: 40 };
+  /* minutes until the result is back; bedside tests (glucometer, ketone meter, ECG) are immediate */
+  const LAB_DELAY = { poc: 0, vbg: 10, abg: 10, chem: 40, bhb: 0, cbc: 40, coag: 50, tns: 60, bcx: 1440, ua: 30, lipase: 45, lft: 45, ecg: 0, dmw: 2880, cxr: 30, usabd: 60, ct: 40 };
   /* invasive or costly orders this case does not need: shown in the debrief as unnecessary */
   const UNNEEDED = { cvc: 3, prbc: 4, ffp: 3, plt: 3, albumin: 2, lp: 4, ceftriax: 1, morphine: 1, midaz: 2, usabd: 1, surg: 0 };
 
@@ -141,6 +142,7 @@
     S = { m: M.create(C.model), log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
     msg('sys', CT().triage);
     renderSim(); loop();
+    S.speed = 1; renderClock();   // the clock runs from arrival; pause it with ❚❚
   }
   const now = () => S.m.t;
   function msg(kind, text, crit) {
@@ -215,9 +217,9 @@
     else if (id === 'lipase') v = { txt: 'Lipase 42 · Amylase 120' };
     else if (id === 'lft') v = { txt: 'ALT 22 · AST 30 · Bili 0.4' };
     else if (id === 'dmw') v = { txt: 'HbA1c 12.4% · GAD +' };
-    addResult(id, now() + (LAB_DELAY[id] || 30), v, m.t);
+    addResult(id, now() + (LAB_DELAY[id] ?? 30), v, m.t);
   }
-  function addResult(kind, ready, v, drawn) { S.res.push({ kind, drawn: drawn ?? now(), ready, v }); }
+  function addResult(kind, ready, v, drawn) { const r = { kind, drawn: drawn ?? now(), ready, v }; S.res.push(r); if (ready <= now()) { r.seen = true; r.at = now(); resultArrived(r); } }
 
   /* ---------------- time loop ---------------- */
   function pause() { if (S) { S.speed = 0; renderClock(); } }
@@ -249,9 +251,13 @@
     events();
     if (m.dead) { msg('nurse', L.msgs.died, true); endCase(); }
   }
+  /* every result is announced; it also goes into the flow sheet */
+  const RES_KEYS = ['G', 'pH', 'pCO2', 'HCO3', 'Na', 'K', 'Cl', 'AG', 'BUN', 'Cr', 'Ca', 'P', 'Mg', 'BHB', 'lact'];
   function resultArrived(r) {
     renderFlow();
-    if (LEVEL === 'guided' && r.v && r.v.K != null && (r.v.K < 3.5 || r.v.K > 5.5)) msg('lab', `${L.flow.K} ${r.v.K}`, false);
+    if (!r.v || r.kind === 'neuro' || r.kind === 'io') return;
+    const txt = r.v.txt != null ? r.v.txt : RES_KEYS.filter(k => r.v[k] != null).map(k => `${L.flow[k]} ${r.v[k]}`).join(' · ');
+    msg('lab', `${oname(r.kind)}: ${txt}`, false);
   }
   function once(key, cond, fn) { if (!S.fired[key] && cond) { S.fired[key] = true; fn(); } }
   function events() {
