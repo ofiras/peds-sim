@@ -12,7 +12,14 @@ window.CASE_DKA = {
     triage: 'Triage: drowsy but answers questions. Deep, fast breathing; fruity smell on his breath. Capillary glucose: "HI" (above the meter range). Urine dipstick: glucose 4+, ketones 3+.',
     history: 'No known illnesses or medications. No fever, cough or urinary symptoms. An aunt has type 1 diabetes. Last meal: a little bread at noon; he drinks a lot of water and juice.',
     exam: 'Drowsy, opens eyes to voice, oriented (GCS 14). Kussmaul breathing, acetone smell. Dry lips and mouth, sunken eyes, cool hands, capillary refill 3.5 s. Abdomen soft, mildly tender all over, no guarding. Pupils equal and reactive, no focal signs, no meningism.',
-    weight: w => `Weighed: ${w} kg (35 kg two months ago).`
+    weight: w => `Weighed: ${w} kg (35 kg two months ago).`,
+    /* the attending objects at once to these */
+    warn: {
+      lp: 'Why an LP? Nothing points to meningitis, and in DKA with a risk of cerebral edema a lumbar puncture can cause herniation. Do not do it.',
+      cvc: 'A central line is not needed here: two good peripheral lines are enough, and DKA raises the risk of line-related thrombosis.',
+      prbc: 'Hemoglobin is 15 and nothing is bleeding: there is no indication for blood.', ffp: 'No bleeding and no coagulopathy: there is no indication for plasma.', plt: 'Platelets are normal: there is no indication for a platelet transfusion.',
+      intub: 'Do not intubate him for the acidosis: his deep breathing is compensating, and after intubation the pH falls further unless you match that ventilation. Intubate only for airway protection.'
+    }
   },
   he: {
     title: 'סוכרת חדשה בחמצת (DKA)',
@@ -21,7 +28,13 @@ window.CASE_DKA = {
     triage: 'בטריאז׳: ישנוני אך עונה לשאלות. נשימה עמוקה ומהירה, ריח פירותי מהפה. סוכר קפילרי: "HI" (מעל טווח המכשיר). מקלון שתן: גלוקוז 4+, קטונים 3+.',
     history: 'ללא מחלות או תרופות ידועות. ללא חום, שיעול או תלונות בשתן. לדודה סוכרת סוג 1. ארוחה אחרונה: מעט לחם בצהריים; שותה הרבה מים ומיץ.',
     exam: 'ישנוני, פוקח עיניים לקול, מתמצא (GCS 14). נשימת קוסמאול, ריח אצטון. שפתיים ופה יבשים, עיניים שקועות, ידיים קרירות, מילוי קפילרי 3.5 שניות. בטן רכה, רגישות קלה מפושטת, ללא הגנה. אישונים שווים ומגיבים, ללא סימנים מוקדיים, ללא סימנים מנינגיאליים.',
-    weight: w => `נשקל: ${w} ק״ג (35 ק״ג לפני חודשיים).`
+    weight: w => `נשקל: ${w} ק״ג (35 ק״ג לפני חודשיים).`,
+    warn: {
+      lp: 'למה ניקור מותני? שום דבר לא מצביע על דלקת קרום המוח, וב-DKA עם סיכון לבצקת מוחית ניקור מותני עלול לגרום להרניאציה. לא לבצע.',
+      cvc: 'אין צורך בצנתר מרכזי: שני עירויים פריפריים טובים מספיקים, ו-DKA מעלה את הסיכון לפקקת סביב צנתר.',
+      prbc: 'ההמוגלובין 15 ואין דימום: אין התוויה למתן דם.', ffp: 'אין דימום ואין הפרעת קרישה: אין התוויה לפלזמה.', plt: 'הטסיות תקינות: אין התוויה למתן טסיות.',
+      intub: 'אל תנשימו אותו בגלל החמצת: הנשימה העמוקה מפצה, ואחרי אינטובציה ה-pH יורד עוד אם לא מתאימים את ההנשמה. אינטובציה רק להגנה על נתיב האוויר.'
+    }
   },
   /* sources shown in the debrief */
   src: {

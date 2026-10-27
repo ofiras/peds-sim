@@ -10,7 +10,7 @@ window.I18N = {
     noMon: 'Not connected', attachHint: 'Order a cardiac monitor', active: 'Active orders', none: 'None yet',
     tabs: { care: 'Care', labs: 'Labs', fluids: 'Fluids', insulin: 'Insulin', meds: 'Drugs' },
     groups: { mon: 'Monitor', drug: 'Drugs', line: 'IV / IO, fluids, blood', air: 'Airway & procedures', lab: 'Labs & imaging' }, groupsFull: { mon: 'Monitor (on top of the cart)', drug: 'Drawer 1 · Drugs', line: 'Drawer 2 · IV / IO, fluids, blood products', air: 'Drawer 3 · Airway & procedures', lab: 'Drawer 4 · Labs & imaging' },
-    bedside: 'At the patient', team: 'Team & disposition', standing: 'Standing orders', flowT: 'Flow sheet', logT: 'Events', silence: 'Silence', sound: 'Sound', bedED: 'ED · Resus 2', bedPICU: 'PICU · Bed 4', latest: 'Latest',
+    bedside: 'At the patient', team: 'Team & disposition', standing: 'Standing orders', flowT: 'Flow sheet', logT: 'Events', silence: 'Silence', sound: 'Sound', bedED: 'ED · Resus 2', youSays: 'You', already: n => `${n}: already done or in progress.`, youStart: (n, m) => `You start: ${n} (about ${m} min).`, nurseStart: (n, m) => `The nurse starts: ${n} (about ${m} min).`, youDone: n => `${n}: done.`, view: 'View', ready: 'result ready', bedPICU: 'PICU · Bed 4', latest: 'Latest',
     order: 'Order', stop: 'Stop', change: 'Change', once: 'Once', every: h => `every ${h} h`,
     o: {
       weigh: 'Weigh the patient', monitor: 'Cardiac monitor + SpO₂ + BP cuff', iv: 'Two IV lines', npo: 'Nothing by mouth (NPO)', headUp: 'Head of bed 30°, midline',
@@ -60,11 +60,11 @@ window.I18N = {
     noMon: 'לא מחובר', attachHint: 'הזמינו מוניטור', active: 'הוראות פעילות', none: 'אין עדיין',
     tabs: { care: 'טיפול', labs: 'מעבדה', fluids: 'נוזלים', insulin: 'אינסולין', meds: 'תרופות' },
     groups: { mon: 'מוניטור', drug: 'תרופות', line: 'IV / IO, נוזלים, דם', air: 'נתיב אוויר ופעולות', lab: 'מעבדה והדמיה' }, groupsFull: { mon: 'מוניטור (על העגלה)', drug: 'מגירה 1 · תרופות', line: 'מגירה 2 · IV / IO, נוזלים, מוצרי דם', air: 'מגירה 3 · נתיב אוויר ופעולות', lab: 'מגירה 4 · מעבדה והדמיה' },
-    bedside: 'ליד המטופל', team: 'צוות והחלטות', standing: 'הוראות קבועות', flowT: 'גיליון מעקב', logT: 'אירועים', silence: 'השתקה', sound: 'צליל', bedED: 'מיון · חדר החייאה 2', bedPICU: 'טיפול נמרץ · מיטה 4', latest: 'אחרון',
+    bedside: 'ליד המטופל', team: 'צוות והחלטות', standing: 'הוראות קבועות', flowT: 'גיליון מעקב', logT: 'אירועים', silence: 'השתקה', sound: 'צליל', bedED: 'מיון · חדר החייאה 2', youSays: 'אתם', already: n => `${n}: כבר בוצע או בביצוע.`, youStart: (n, m) => `אתם מתחילים: ${n} (כ-${m} דקות).`, nurseStart: (n, m) => `האחות מתחילה: ${n} (כ-${m} דקות).`, youDone: n => `${n}: בוצע.`, view: 'הצגה', ready: 'התשובה התקבלה', bedPICU: 'טיפול נמרץ · מיטה 4', latest: 'אחרון',
     order: 'הוראה', stop: 'הפסקה', change: 'שינוי', once: 'פעם אחת', every: h => `כל ${h} שע׳`,
     o: {
       weigh: 'שקילה', monitor: 'מוניטור לב + סטורציה + שרוול ל״ד', iv: 'שני עירויים', npo: 'צום (NPO)', headUp: 'הגבהת ראש המיטה ל-30°, ראש בקו האמצע',
-      neuro: 'אומדן נוירולוגי (GCS, אישונים) כל שעה', io: 'מאזן נוזלים מדויק כל שעה', att: 'קריאה לכונן', picu: 'אשפוז בטיפול נמרץ', ct: 'CT ראש',
+      neuro: 'אומדן נוירולוגי (GCS, אישונים) כל שעה', io: 'מאזן נוזלים מדויק כל שעה', att: 'שיחה לכונן', picu: 'אשפוז בטיפול נמרץ', ct: 'CT ראש',
       historyQ: 'אנמנזה', examQ: 'בדיקת המטופל',
       poc: 'סוכר קפילרי', vbg: 'גזים ורידיים + אלקטרוליטים', chem: 'כימיה (נתרן, אשלגן, כלור, אוריאה, קראטינין, סידן, זרחן, מגנזיום)', bhb: 'קטונים בדם (β-הידרוקסיבוטיראט)', cbc: 'ספירת דם + CRP', ecg: 'אק״ג 12 לידים', dmw: 'בירור סוכרת (HbA1c, נוגדנים, TSH, צליאק)',
       bolus: 'בולוס נוזלים', main: 'עירוי נוזלים רציף', insDrip: 'עירוי אינסולין (רגולר, IV)', insBolus: 'בולוס אינסולין IV', scRapid: 'אינסולין מהיר תת-עורי לפני ארוחה', scBasal: 'אינסולין בזאלי תת-עורי (לנטוס)', stopDrip: 'הפסקת עירוי האינסולין',

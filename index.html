@@ -1171,6 +1171,24 @@ svg.tl .tlbt{font-size:9px}svg.tl .tlbt.ok{fill:var(--good)}svg.tl .tlbt.bad{fil
 .charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .ch{margin:0;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px}.ch figcaption{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
 @media (max-width:720px){ .oform label{grid-template-columns:1fr;gap:4px} .speed .sp{padding:6px 7px} .simbar .in{flex-wrap:wrap} }
+
+/* result viewers */
+.ecghd{display:grid;gap:2px;font-family:var(--mono);font-size:12.5px;background:#fff6f4;color:#1b1b1b;border:1px solid #e3b8b8;border-radius:6px 6px 0 0;padding:8px 10px;margin-bottom:-1px}
+.ecghd b{font-weight:600}.ecghd small{color:#6a4a4a}
+.sheet.meterw{width:min(320px,100%);justify-items:center}
+.meter{display:grid;justify-items:center;gap:8px}.meter svg{width:170px}
+.rlink{border:0;background:none;color:var(--spo2);font:inherit;padding:0;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.emr{background:#fff;color:#1b2430;border-radius:6px;overflow:hidden;font:14px/1.45 'Heebo',Arial,sans-serif;border:1px solid #b8c6d6}
+.emr-h{display:flex;justify-content:space-between;gap:10px;background:#1f4e8c;color:#fff;padding:8px 12px;font-size:14px}
+.emr-m{display:flex;flex-wrap:wrap;gap:4px 16px;background:#e8eef6;color:#33475b;padding:6px 12px;font-size:12.5px;border-bottom:1px solid #b8c6d6}
+.emr-t{padding:8px 12px 2px;font-weight:700;color:#1f4e8c}
+.emr table{width:100%;border-collapse:collapse;font-size:13.5px}
+.emr th{background:#f2f5f9;color:#33475b;font-weight:600;text-align:start;padding:5px 10px;border-bottom:1px solid #c9d4e1}
+.emr td{padding:5px 10px;border-bottom:1px solid #e3e9f0}
+.emr td.num{font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:end;white-space:nowrap}
+.emr td.fl{font-weight:800;color:#c4161c;width:18px}
+.emr tr.abn td{color:#c4161c;font-weight:700}
+.emr-x{padding:8px 12px 12px;margin:0}
 </style>
 </head>
 <body>
@@ -1180,6 +1198,7 @@ svg.tl .tlbt{font-size:9px}svg.tl .tlbt.ok{fill:var(--good)}svg.tl .tlbt.bad{fil
 <script src="src/model.js" charset="utf-8"></script>
 <script src="src/case_dka.js" charset="utf-8"></script>
 <script src="src/ui.js" charset="utf-8"></script>
+<script src="src/results.js" charset="utf-8"></script>
 <script src="src/app.js" charset="utf-8"></script>
 </body>
 </html>
