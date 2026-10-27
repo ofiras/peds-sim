@@ -51,7 +51,7 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(88 + 4 * defPct + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * ceS + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    s.HR = Math.round(88 + 4 * defPct + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
     s.RR = s.vent ? 22 : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
@@ -110,10 +110,10 @@
     /* glucose (mg/dL per hour); 1 mg/kg/min of dextrose ≈ 30 mg/dL/h */
     const sens = 0.25 + 0.75 * clamp((s.pH - 6.95) / 0.4, 0, 1);
     const fI = Math.pow(clamp(I / 0.1, 0, 1.5), 0.8);
-    const prod = 90 * (1 - 0.85 * clamp(I / 0.05, 0, 1));
+    const prod = 60 * (1 - 0.8 * clamp(I / 0.05, 0, 1));
     const brain = 40 * clamp(s.G / 80, 0, 1);
     const upt = 200 * sens * fI * s.G / (s.G + 300);
-    const renal = s.G > 180 ? 0.1 * (s.G - 180) * s.perf : 0;
+    const renal = s.G > 180 ? 0.25 * (s.G - 180) * s.perf * clamp(0.6 + 0.4 * (1 - s.defPct / 8.5), 0.6, 1) : 0;
     const gir = dexMg / w / dt;
     const ecf = s.wt0 * 250 - s.deficit * 0.6;
     s.G += (prod - brain - upt - renal + 30 * gir) * h;
@@ -141,6 +141,7 @@
       const peak = s.ceRisk < 1.5 ? 0.45 : 1.2;    // careful management: edema stays moderate
       if (osmo) s.ce = Math.max(0, s.ce - 0.9 * h);
       else if (s.ce < peak && s.ceDrive > 0.2) s.ce = Math.min(peak, s.ce + grow * h);
+      else if (s.ceDrive > 0.2 && !s.mannitol.length && !s.hts.length) s.ce += 0.06 * h;   // never treated: slow progression toward herniation
       else if (s.ceDrive <= 0.2) s.ce = Math.max(0, s.ce - 0.2 * h);
       /* herniation: a 10-minute peri-arrest window (apnea, Cushing response) in which osmotherapy and intubation can still save him */
       if (s.ce >= (s.vent ? 1.05 : 0.95)) { if (s.arrestAt == null) s.arrestAt = s.t; else if (s.t - s.arrestAt >= 10) { s.dead = true; s.deadAt = s.t; } }

@@ -48,7 +48,7 @@
 
   /* ---------- bedside meters ---------- */
   function meter(kind, v, he) {
-    const val = kind === 'poc' ? (v.G > 600 ? 'HI' : v.G < 20 ? 'LO' : Math.round(v.G)) : (v.BHB > 8 ? 'HI' : fx(v.BHB, 1));
+    const val = kind === 'poc' ? (v.G === 'HI' || v.G > 600 ? 'HI' : v.G < 20 ? 'LO' : Math.round(v.G)) : (v.BHB > 8 ? 'HI' : fx(v.BHB, 1));
     const unit = kind === 'poc' ? 'mg/dL' : 'mmol/L', lab = kind === 'poc' ? 'GLU' : 'β-KET';
     return `<div class="meter" dir="ltr"><svg viewBox="0 0 160 240" role="img" aria-label="${esc(lab + ' ' + val)}"><rect x="10" y="6" width="140" height="228" rx="34" fill="#3f4b52" stroke="#5f6f7a" stroke-width="2"/><rect x="28" y="30" width="104" height="92" rx="10" fill="#cfe9d8"/><text x="80" y="54" text-anchor="middle" font-family="monospace" font-size="12" fill="#2b3a30">${lab}</text><text x="80" y="96" text-anchor="middle" font-family="monospace" font-weight="700" font-size="${String(val).length > 3 ? 30 : 38}" fill="#132018">${val}</text><text x="80" y="114" text-anchor="middle" font-family="monospace" font-size="11" fill="#2b3a30">${unit}</text><circle cx="58" cy="160" r="12" fill="#56646d"/><circle cx="102" cy="160" r="12" fill="#56646d"/><rect x="64" y="212" width="32" height="26" rx="3" fill="${kind === 'poc' ? '#e9eef0' : '#c39bff'}"/></svg>
       ${val === 'HI' && kind === 'poc' ? `<p class="muted small">${he ? 'HI = מעל טווח המכשיר (600 מ״ג/ד״ל). שלחו סוכר ורידי.' : 'HI = above the meter range (600 mg/dL). Send a venous glucose.'}</p>` : ''}</div>`;
