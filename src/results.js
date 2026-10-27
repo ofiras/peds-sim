@@ -28,8 +28,8 @@
   }
   function ecgText(st, he) {
     const qt = Math.round(1000 * (0.09 + 0.16 * Math.sqrt(60 / st.hr) + 0.08)), qtc = Math.round(qt / Math.sqrt(60 / st.hr));
-    const k = st.k, interp = st.hr >= 100 ? 'Sinus tachycardia' : 'Sinus rhythm', extra = k > 6 ? ' · Peaked T waves' : k < 3 ? ' · Flat T waves, prominent U waves' : '';
-    return { head: `HR ${st.hr} bpm · PR 124 ms · QRS 74 ms · QT/QTc ${qt}/${qtc} ms · Axis +60°`, interp: interp + extra + (k > 6 || k < 3 ? '' : ' · Otherwise normal ECG'), note: he ? 'פענוח אוטומטי של המכשיר: יש לאשר על ידי רופא.' : 'Computer interpretation: must be confirmed by a physician.' };
+    const k = st.k, interp = st.hr >= 100 ? 'Sinus tachycardia' : 'Sinus rhythm', extra = k > 6 ? ' · Peaked T waves' : k < 3.2 ? ' · Flat T waves, prominent U waves' : '';
+    return { head: `HR ${st.hr} bpm · PR 124 ms · QRS 74 ms · QT/QTc ${qt}/${qtc} ms · Axis +60°`, interp: interp + extra + (k > 6 || k < 3.2 ? '' : ' · Otherwise normal ECG'), note: he ? 'פענוח אוטומטי של המכשיר: יש לאשר על ידי רופא.' : 'Computer interpretation: must be confirmed by a physician.' };
   }
 
   /* ---------- blood-gas analyzer slip ---------- */
@@ -75,7 +75,7 @@
   function report(kind, v, ctx) {
     const he = ctx.he, P = PANELS[kind];
     const img = ['cxr', 'usabd', 'ct'].includes(kind);
-    const head = `<div class="emr-h"><b>${img ? (he ? 'דוח דימות' : 'Radiology report') : (he ? 'תוצאות מעבדה' : 'Laboratory results')}</b><span>${esc(ctx.pt)}</span></div><div class="emr-m"><span>${he ? 'מחלקה' : 'Unit'}: ${esc(ctx.unitName || (he ? 'מיון ילדים' : 'Pediatric ED'))}</span><span>${img ? (he ? 'בוצע' : 'Performed') : (he ? 'נלקח' : 'Collected')}: ${ctx.date} ${ctx.time}</span><span>${img ? (he ? 'פוענח' : 'Reported') : (he ? 'אושר' : 'Verified')}: ${ctx.date} ${ctx.ready}</span></div>`;
+    const head = `<div class="emr-h"><b>${img ? (he ? 'דוח דימות' : 'Radiology report') : (he ? 'תוצאות מעבדה' : 'Laboratory results')}</b><span>${esc(ctx.pt)}</span></div><div class="emr-m"><span>${he ? 'מחלקה' : 'Unit'}: ${esc(ctx.unitName || (he ? 'מיון ילדים' : 'Pediatric ED'))}</span><span>${img ? (he ? 'בוצע' : 'Performed') : (he ? 'נלקח' : 'Collected')}: ${ctx.date} ${ctx.time}</span><span>${img ? (he ? 'פוענח' : 'Reported') : (he ? 'אושר' : 'Verified')}: ${ctx.dateReady || ctx.date} ${ctx.ready}</span></div>`;
     if (P) {
       const rows = P.keys.filter(k => v[k] != null).map(k => {
         const [en, hn, u, lo, hi, dp] = REF[k], x = +v[k], fl = x < lo ? 'L' : x > hi ? 'H' : '';

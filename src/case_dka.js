@@ -26,7 +26,7 @@ window.CASE_DKA = {
       intub: 'Do not intubate him for the acidosis: his deep breathing is compensating, and after intubation the pH falls further unless you match that ventilation. Intubate only for airway protection.'
     },
     consult: {
-      endo: { min: 30, text: 'Pediatric endocrinology: new-onset type 1 diabetes in DKA. Continue the DKA protocol; we will see him in the morning to start subcutaneous insulin and teaching. Please send the diabetes work-up (antibodies, insulin/C-peptide, HbA1c, thyroid function, celiac serology) before insulin is long running.' },
+      endo: { min: 30, text: 'Pediatric endocrinology: new-onset type 1 diabetes in DKA. Continue the DKA protocol; we will see him in the morning to start subcutaneous insulin and teaching. Please send the diabetes work-up (antibodies, insulin/C-peptide, HbA1c, thyroid function, celiac serology) before insulin is long running.', textSent: 'Pediatric endocrinology: new-onset type 1 diabetes in DKA. Continue the DKA protocol; we will see him in the morning to start subcutaneous insulin and teaching. Good that the diabetes work-up is already sent.' },
       surg: { min: 45, text: 'Pediatric surgery: soft abdomen with mild diffuse tenderness, no peritoneal signs. The pain fits DKA; no imaging needed now. Re-examine if it persists after the acidosis is corrected.' }
     }
   },
@@ -50,7 +50,7 @@ window.CASE_DKA = {
       intub: 'אל תנשימו אותו בגלל החמצת: הנשימה העמוקה מפצה, ואחרי אינטובציה ה-pH יורד עוד אם לא מתאימים את ההנשמה. אינטובציה רק להגנה על נתיב האוויר.'
     },
     consult: {
-      endo: { min: 30, text: 'אנדוקרינולוגיה ילדים: סוכרת סוג 1 חדשה בהצגת DKA. ממשיכים לפי פרוטוקול DKA; נראה אותו בבוקר להתחלת אינסולין תת-עורי והדרכה. לשלוח בירור סוכרת (נוגדנים, אינסולין/C-peptide, HbA1c, תפקודי תריס, סרולוגיה לצליאק) כמה שיותר מוקדם.' },
+      endo: { min: 30, text: 'אנדוקרינולוגיה ילדים: סוכרת סוג 1 חדשה בהצגת DKA. ממשיכים לפי פרוטוקול DKA; נראה אותו בבוקר להתחלת אינסולין תת-עורי והדרכה. לשלוח בירור סוכרת (נוגדנים, אינסולין/C-peptide, HbA1c, תפקודי תריס, סרולוגיה לצליאק) כמה שיותר מוקדם.', textSent: 'אנדוקרינולוגיה ילדים: סוכרת סוג 1 חדשה בהצגת DKA. ממשיכים לפי פרוטוקול DKA; נראה אותו בבוקר להתחלת אינסולין תת-עורי והדרכה. טוב שבירור הסוכרת כבר נשלח.' },
       surg: { min: 45, text: 'כירורגיית ילדים: בטן רכה עם רגישות מפושטת קלה, ללא סימני גירוי צפקי. הכאב מתאים ל-DKA; אין צורך בהדמיה כרגע. לבדוק שוב אם נמשך אחרי תיקון החמצת.' }
     }
   },
