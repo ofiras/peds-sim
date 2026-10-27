@@ -24,17 +24,18 @@ window.I18N = {
     fl: { NS: 'NaCl 0.9%', HALF: 'NaCl 0.45%', LR: 'Ringer lactate' },
     help: {
       maint: (m, d, lo, hi) => `Maintenance (4-2-1): ${m} mL/h. Protocol: deficit over 48 h + maintenance ≈ 1.5–2× maintenance = ${lo}–${hi} mL/h.`,
+      insProt: 'Protocol: 0.05 units/kg/h (0.1 only with the attending).',
       ins: (u, ml) => `= ${u} units/h · ${ml} mL/h of 10 units in 100 mL`,
       man: ml => `= ${ml} mL of mannitol 20%`, hts: ml => `= ${ml} mL`, bol: ml => `= ${ml} mL`
     },
     nurseSays: 'Nurse', labSent: n => `${n}: drawn and sent to the lab.`, imgOrdered: n => `${n}: ordered.`, consSays: 'Consultant', objCancel: 'Cancel the order', objGo: 'Do it anyway', objDropped: n => `${n}: cancelled after the attending's advice.`, consCalled: (n, m) => `${n}: consult requested; they will call back in about ${m} min.`, attSays: 'Attending', lab: 'Result', sys: 'Note',
     msgs: {
       weighed: w => `Weight now: ${w} kg (35 kg two months ago).`, ivIn: 'Two IV lines in. Bloods can be drawn from the line.', noIV: 'There is no IV access yet.',
-      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', wardReq: 'Transfer to the ward requested.', wardIn: 'He is on the pediatric ward now.', noTS: 'The blood bank will not issue blood products without a valid type and screen: send one first.', picuIn: 'He is in the PICU now.',
-      thirsty: 'He says he is very thirsty and asks for water.', headache: 'He complains of a headache and vomited again.', hrDrop: hr => `Heart rate fell to ${hr} and he is harder to wake.`,
+      monOn: 'Monitor attached.', npo: 'NPO noted.', headUp: 'Head of bed up 30°.', picuReq: 'PICU accepts. Transfer in about 30 minutes.', wardReq: 'Transfer to the ward requested.', wardIn: 'He is on the pediatric ward now.', poDrowsy: 'He is too drowsy to eat or drink safely (aspiration risk). I am holding it; please reassess him.', noTS: 'The blood bank will not issue blood products without a valid type and screen: send one first.', picuIn: 'He is in the PICU now.',
+      thirsty: 'He says he is very thirsty and asks for water.', headache: 'He complains of a headache and vomited again.', hrDrop: (a, b) => `Heart rate fell from ${a} to ${b} and he is harder to wake.`, periArrest: hr => `He is barely breathing! HR ${hr}, BP climbing, pupils unequal. Act now!`,
       pupils: 'Pupils are sluggish and his breathing is irregular!', kLow: 'On the monitor: flat T waves and U waves.', kHigh: 'On the monitor: tall peaked T waves.',
       hypo: g => `He is sweaty and confused. Capillary glucose ${g} mg/dL.`, lowUO: 'Urine output has been low for two hours.', breakfast: 'It is morning; breakfast has arrived and he is hungry.',
-      died: 'He stopped breathing and lost his pulse. Resuscitation was not successful.', ctEarly: 'CT is not safe now: stabilize first.', ctDone: 'CT: diffuse cerebral edema, no bleeding.', ctNormal: 'CT: no edema or bleeding.',
+      died: 'He stopped breathing and lost his pulse. Resuscitation was not successful.', ctEarly: 'CT is not safe now: stabilize first.', ctDone: 'Technique: non-contrast head CT.\nFindings: diffuse effacement of the sulci and basal cisterns, small ventricles. No hemorrhage, infarct or midline shift.\nImpression: diffuse cerebral edema. No hemorrhage.', ctNormal: 'Technique: non-contrast head CT.\nFindings: normal sulci, cisterns and ventricles. No hemorrhage, mass or midline shift.\nImpression: normal head CT. A normal CT does not rule out early cerebral edema.',
       attCE: 'Treat it as cerebral edema now: mannitol 0.5–1 g/kg over 20 min (or NaCl 3% 5–10 mL/kg), cut fluids by a third, head up 30°, lower insulin to 0.025 units/kg/h, PICU. CT only after he is stable.',
       attGen: 'Follow the protocol and update me with the next gas. Glucose should fall by no more than 100 mg/dL per hour; aim for potassium 4–5.',
       attIns: 'Approved, you can go up to 0.1 units/kg/h if the acidosis is not improving.',
@@ -43,7 +44,7 @@ window.I18N = {
       ondan: 'Ondansetron given.', bicarb: 'Bicarbonate is running.', kpo: 'Potassium given by mouth.', kphos: 'Potassium phosphate running over 4 hours.',
       man: 'Mannitol running over 20 minutes.', hts: 'NaCl 3% running over 30 minutes.', insBolus: 'Insulin bolus given.'
     },
-    flow: { time: 'Time', G: 'Glucose', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'Na', NaC: 'Na corrected', K: 'K', Cl: 'Cl', AG: 'Anion gap', eOsm: 'Eff. osmolality', BUN: 'Urea (BUN)', Cr: 'Creatinine', Ca: 'Ca', P: 'Phosphate', Mg: 'Mg', BHB: 'Ketones', lact: 'Lactate', GCS: 'GCS', pupils: 'Pupils', UO: 'Urine mL/kg/h', IN: 'In (mL)', OUT: 'Out (mL)' },
+    flow: { time: 'Time', G: 'Glucose', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'Na', NaC: 'Na corrected', K: 'K', Cl: 'Cl', AG: 'Anion gap', eOsm: 'Eff. osmolality', BUN: 'BUN', Cr: 'Creatinine', Ca: 'Ca', P: 'Phosphate', Mg: 'Mg', BHB: 'Ketones', lact: 'Lactate', GCS: 'GCS', pupils: 'Pupils', UO: 'Urine mL/kg/h', IN: 'In (mL)', OUT: 'Out (mL)' },
     pending: 'pending', endCase: 'End case', endQ: 'End the case and see the debrief?', yes: 'Yes', no: 'No',
     debrief: 'Debrief', score: 'Score', survived: 'Outcome', needed: 'What was needed', charts: 'Course', rubric: 'Checklist', again: 'Play again', home: 'Home',
     pupilsV: { normal: 'equal, reactive', sluggish: 'sluggish', unequal: 'unequal' },
@@ -74,17 +75,18 @@ window.I18N = {
     fl: { NS: 'NaCl 0.9%', HALF: 'NaCl 0.45%', LR: 'רינגר לקטט' },
     help: {
       maint: (m, d, lo, hi) => `אחזקה (4-2-1): ${m} מ״ל/שע׳. לפי הפרוטוקול: חסר על פני 48 שעות + אחזקה ≈ פי 1.5–2 מהאחזקה = ${lo}–${hi} מ״ל/שע׳.`,
+      insProt: 'פרוטוקול: 0.05 יח׳/ק״ג/שע׳ (0.1 רק באישור כונן).',
       ins: (u, ml) => `= ${u} יח׳/שע׳ · ${ml} מ״ל/שע׳ של 10 יח׳ ב-100 מ״ל`,
       man: ml => `= ${ml} מ״ל מניטול 20%`, hts: ml => `= ${ml} מ״ל`, bol: ml => `= ${ml} מ״ל`
     },
     nurseSays: 'אחות', labSent: n => `${n}: נלקח ונשלח למעבדה.`, imgOrdered: n => `${n}: הוזמן.`, consSays: 'יועץ', objCancel: 'ביטול ההוראה', objGo: 'לבצע בכל זאת', objDropped: n => `${n}: בוטל בעקבות הכונן.`, consCalled: (n, m) => `${n}: נשלחה בקשת ייעוץ; יחזרו אליכם בעוד כ-${m} דקות.`, attSays: 'כונן', lab: 'תוצאה', sys: 'הערה',
     msgs: {
       weighed: w => `משקל כעת: ${w} ק״ג (35 ק״ג לפני חודשיים).`, ivIn: 'הוכנסו שני עירויים. אפשר לקחת דמים מהעירוי.', noIV: 'אין עדיין גישה ורידית.',
-      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', wardReq: 'התבקשה העברה למחלקה.', wardIn: 'הוא כעת במחלקת ילדים.', noTS: 'בנק הדם לא ינפיק מוצרי דם בלי סוג והצלבה בתוקף: קודם לשלוח סוג והצלבה.', picuIn: 'הוא כעת בטיפול נמרץ.',
-      thirsty: 'הוא אומר שהוא צמא מאוד ומבקש מים.', headache: 'הוא מתלונן על כאב ראש והקיא שוב.', hrDrop: hr => `הדופק ירד ל-${hr} וקשה יותר להעיר אותו.`,
+      monOn: 'המוניטור חובר.', npo: 'צום נרשם.', headUp: 'ראש המיטה הוגבה ל-30°.', picuReq: 'טיפול נמרץ מקבלים. מעבר בעוד כחצי שעה.', wardReq: 'התבקשה העברה למחלקה.', wardIn: 'הוא כעת במחלקת ילדים.', poDrowsy: 'הוא ישנוני מדי לאכול או לשתות בבטחה (סכנת אספירציה). אני לא נותנת; בבקשה להעריך אותו שוב.', noTS: 'בנק הדם לא ינפיק מוצרי דם בלי סוג והצלבה בתוקף: קודם לשלוח סוג והצלבה.', picuIn: 'הוא כעת בטיפול נמרץ.',
+      thirsty: 'הוא אומר שהוא צמא מאוד ומבקש מים.', headache: 'הוא מתלונן על כאב ראש והקיא שוב.', hrDrop: (a, b) => `הדופק ירד מ-${a} ל-${b} וקשה יותר להעיר אותו.`, periArrest: hr => `הוא כמעט לא נושם! דופק ${hr}, לחץ דם עולה, אישונים לא שווים. לפעול מיד!`,
       pupils: 'האישונים מגיבים באיטיות והנשימה לא סדירה!', kLow: 'במוניטור: גלי T שטוחים וגלי U.', kHigh: 'במוניטור: גלי T גבוהים ומחודדים.',
       hypo: g => `הוא מזיע ומבולבל. סוכר קפילרי ${g} מ״ג/ד״ל.`, lowUO: 'תפוקת השתן נמוכה כבר שעתיים.', breakfast: 'בוקר; ארוחת הבוקר הגיעה והוא רעב.',
-      died: 'הוא הפסיק לנשום ואיבד דופק. ההחייאה לא הצליחה.', ctEarly: 'CT לא בטוח כעת: קודם לייצב.', ctDone: 'CT: בצקת מוחית מפושטת, ללא דימום.', ctNormal: 'CT: ללא בצקת או דימום.',
+      died: 'הוא הפסיק לנשום ואיבד דופק. ההחייאה לא הצליחה.', ctEarly: 'CT לא בטוח כעת: קודם לייצב.', ctDone: 'טכניקה: CT מוח ללא חומר ניגוד.\nממצאים: מחיקה מפושטת של החריצים ושל הבורות הבסיסיים, חדרים צרים. ללא דימום, ללא אוטם וללא תזוזת קו אמצע.\nסיכום: בצקת מוחית מפושטת. ללא דימום.', ctNormal: 'טכניקה: CT מוח ללא חומר ניגוד.\nממצאים: חריצים, בורות וחדרים בגודל תקין. ללא דימום, ללא תהליך תופס מקום וללא תזוזת קו אמצע.\nסיכום: CT מוח תקין. CT תקין אינו שולל בצקת מוחית מוקדמת.',
       attCE: 'טפלו בזה כבבצקת מוחית עכשיו: מניטול 0.5–1 גר׳/ק״ג במשך 20 דקות (או NaCl 3% 5–10 מ״ל/ק״ג), הורידו נוזלים בשליש, ראש מוגבה 30°, הורידו אינסולין ל-0.025 יח׳/ק״ג/שע׳, טיפול נמרץ. CT רק אחרי ייצוב.',
       attGen: 'המשיכו לפי הפרוטוקול ועדכנו אותי עם הגזים הבאים. הסוכר צריך לרדת לא יותר מ-100 מ״ג/ד״ל בשעה; שאפו לאשלגן 4–5.',
       attIns: 'מאושר, אפשר לעלות עד 0.1 יח׳/ק״ג/שע׳ אם החמצת לא משתפרת.',
@@ -93,7 +95,7 @@ window.I18N = {
       ondan: 'אונדנסטרון ניתן.', bicarb: 'ביקרבונט רץ.', kpo: 'אשלגן ניתן פומית.', kphos: 'פוטסיום פוספט רץ במשך 4 שעות.',
       man: 'מניטול רץ במשך 20 דקות.', hts: 'NaCl 3% רץ במשך 30 דקות.', insBolus: 'בולוס אינסולין ניתן.'
     },
-    flow: { time: 'שעה', G: 'סוכר', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'נתרן', NaC: 'נתרן מתוקן', K: 'אשלגן', Cl: 'כלור', AG: 'פער אניונים', eOsm: 'אוסמולליות אפקטיבית', BUN: 'אוריאה', Cr: 'קראטינין', Ca: 'סידן', P: 'זרחן', Mg: 'מגנזיום', BHB: 'קטונים', lact: 'לקטט', GCS: 'GCS', pupils: 'אישונים', UO: 'שתן מ״ל/ק״ג/שע׳', IN: 'נכנס (מ״ל)', OUT: 'יצא (מ״ל)' },
+    flow: { time: 'שעה', G: 'סוכר', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'נתרן', NaC: 'נתרן מתוקן', K: 'אשלגן', Cl: 'כלור', AG: 'פער אניונים', eOsm: 'אוסמולליות אפקטיבית', BUN: 'BUN', Cr: 'קראטינין', Ca: 'סידן', P: 'זרחן', Mg: 'מגנזיום', BHB: 'קטונים', lact: 'לקטט', GCS: 'GCS', pupils: 'אישונים', UO: 'שתן מ״ל/ק״ג/שע׳', IN: 'נכנס (מ״ל)', OUT: 'יצא (מ״ל)' },
     pending: 'ממתין', endCase: 'סיום המקרה', endQ: 'לסיים את המקרה ולראות את התחקיר?', yes: 'כן', no: 'לא',
     debrief: 'תחקיר', score: 'ציון', survived: 'תוצאה', needed: 'מה היה צריך', charts: 'מהלך', rubric: 'רשימת בדיקה', again: 'שוב', home: 'בית',
     pupilsV: { normal: 'שווים ומגיבים', sluggish: 'מגיבים באיטיות', unequal: 'לא שווים' },

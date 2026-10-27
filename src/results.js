@@ -38,9 +38,9 @@
     const be = 0.93 * (v.HCO3 - 24.4 + 14.8 * (v.pH - 7.4)), po2 = ctx.arterial ? 95 : 38 + (ctx.seed % 7), so2 = Math.min(99.5, sev(po2) * 100), hb = ctx.hb || 14.8;
     const row = (n, x, dp, u, rg) => `<div class="gr"><span>${n}</span><b>${(+x).toFixed(dp)}<i>${rg ? (x < rg[0] ? '↓' : x > rg[1] ? '↑' : '') : ''}</i></b><em>${u}</em></div>`;
     return `<div class="paper" dir="ltr" lang="en">
-      <div class="gh"><b>${ctx.arterial ? 'ARTERIAL' : 'VENOUS'} SAMPLE</b><span>${ctx.date}</span><span>${ctx.time}</span><span>System Name</span><span>PEDS ED</span><span>Patient</span><span>${esc(ctx.pt)}</span></div>
+      <div class="gh"><b>${ctx.arterial ? 'ARTERIAL' : 'VENOUS'} SAMPLE</b><span>${ctx.date}</span><span>${ctx.time}</span><span>System Name</span><span>${esc(ctx.unit || 'PEDS ED')}</span><span>Patient</span><span>${esc(ctx.ptEn || ctx.pt)}</span></div>
       <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', ctx.arterial ? [7.35, 7.45] : [7.32, 7.42])}${row('pCO₂', v.pCO2, 1, 'mmHg', ctx.arterial ? [35, 45] : [40, 50])}${row('pO₂', po2, 1, 'mmHg', ctx.arterial ? [80, 100] : [30, 50])}${row('HCO₃⁻ act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('BE(B)', be, 1, 'mmol/L', [-2, 2])}
-      <h4>CO-OXIMETRY</h4>${row('Hct', hb * 2.94, 0, '%', [33, 43])}${row('tHb', hb, 1, 'g/dL', [11, 14.5])}${row('sO₂', so2, 1, '%', ctx.arterial ? [95, 100] : [60, 80])}
+      <h4>CO-OXIMETRY</h4>${row('Hct', hb * 3, 0, '%', [35, 45])}${row('tHb', hb, 1, 'g/dL', [11.5, 15.5])}${row('sO₂', so2, 1, '%', ctx.arterial ? [95, 100] : [60, 80])}
       <h4>ELECTROLYTES</h4>${row('Na⁺', v.Na, 1, 'mmol/L', [135, 145])}${row('K⁺', v.K, 2, 'mmol/L', [3.5, 5])}${row('Ca⁺⁺', 1.16, 2, 'mmol/L', [1.12, 1.32])}${row('Cl⁻', v.Cl, 0, 'mmol/L', [98, 107])}${row('AnGap', v.AG, 1, 'mmol/L', [8, 16])}
       <h4>METABOLITES</h4>${row('Glu', v.G, 0, 'mg/dL', [70, 140])}${row('Lac', v.lact, 2, 'mmol/L', [0.5, 2])}
       <div class="gf">↑, ↓ – Out of range</div></div>`;
@@ -74,7 +74,8 @@
   };
   function report(kind, v, ctx) {
     const he = ctx.he, P = PANELS[kind];
-    const head = `<div class="emr-h"><b>${he ? 'תוצאות מעבדה' : 'Laboratory results'}</b><span>${esc(ctx.pt)}</span></div><div class="emr-m"><span>${he ? 'מחלקה' : 'Unit'}: ${he ? 'מיון ילדים' : 'Pediatric ED'}</span><span>${he ? 'נלקח' : 'Collected'}: ${ctx.date} ${ctx.time}</span><span>${he ? 'אושר' : 'Verified'}: ${ctx.date} ${ctx.ready}</span></div>`;
+    const img = ['cxr', 'usabd', 'ct'].includes(kind);
+    const head = `<div class="emr-h"><b>${img ? (he ? 'דוח דימות' : 'Radiology report') : (he ? 'תוצאות מעבדה' : 'Laboratory results')}</b><span>${esc(ctx.pt)}</span></div><div class="emr-m"><span>${he ? 'מחלקה' : 'Unit'}: ${esc(ctx.unitName || (he ? 'מיון ילדים' : 'Pediatric ED'))}</span><span>${img ? (he ? 'בוצע' : 'Performed') : (he ? 'נלקח' : 'Collected')}: ${ctx.date} ${ctx.time}</span><span>${img ? (he ? 'פוענח' : 'Reported') : (he ? 'אושר' : 'Verified')}: ${ctx.date} ${ctx.ready}</span></div>`;
     if (P) {
       const rows = P.keys.filter(k => v[k] != null).map(k => {
         const [en, hn, u, lo, hi, dp] = REF[k], x = +v[k], fl = x < lo ? 'L' : x > hi ? 'H' : '';
@@ -93,8 +94,8 @@
   /* rows: [label, unit, lo, hi, dp, panicLo, panicHi, value(v), kinds (default: the section's)] */
   const CH = ['chem'], k = key => v => v[key];
   const CUM = [
-    { he: 'ביוכימיה בדם', en: 'Blood chemistry', kinds: ['chem', 'lft', 'lipase', 'cbc', 'dmw'], rows: [
-      ['Sodium-B', 'mmol/L', 135, 145, 0, 120, 160, k('Na'), CH], ['Potassium-B', 'mmol/L', 3.5, 5.1, 1, 2.5, 6.5, k('K'), CH],
+    { he: 'ביוכימיה בדם', en: 'Blood chemistry', kinds: ['chem', 'lft', 'lipase', 'cbc', 'dmw', 'bhb'], rows: [
+      ['Sodium-B', 'mmol/L', 135, 145, 0, 125, 155, k('Na'), CH], ['Potassium-B', 'mmol/L', 3.5, 5.1, 1, 3.0, 6.0, k('K'), CH],
       ['Chloride-B', 'mmol/L', 98, 107, 0, null, null, k('Cl'), CH], ['Bicarbonate-B', 'mmol/L', 22, 29, 1, 10, null, k('HCO3'), CH],
       ['Anion gap-B', 'mmol/L', 8, 16, 0, null, null, k('AG'), CH], ['Glucose-B', 'mg/dL', 70, 110, 0, 50, 500, k('G'), CH],
       ['Urea-B', 'mg/dL', 15, 40, 1, null, null, v => v.BUN != null ? v.BUN * 2.14 : null, CH], ['Creatinine-B', 'mg/dL', 0.3, 0.7, 2, null, null, k('Cr'), CH],
@@ -104,11 +105,12 @@
       ['Bilirubin Total-B', 'mg/dL', 0.2, 1.2, 1, null, null, k('BIL'), ['lft']], ['Albumin-B', 'g/dL', 3.5, 5, 1, null, null, k('ALB'), ['lft']],
       ['Lipase-B', 'U/L', 0, 60, 0, null, null, k('LIP'), ['lipase']], ['Amylase-B', 'U/L', 25, 125, 0, null, null, k('AMY'), ['lipase']],
       ['CRP-B', 'mg/L', 0, 5, 1, null, null, v => v.CRP != null ? v.CRP * 10 : null, ['cbc']],
+      ['beta-Hydroxybutyrate-B', 'mmol/L', 0, 0.6, 1, null, 3, k('BHB'), ['bhb']],
       ['HbA1c', '%', 4, 5.6, 1, null, null, k('A1C'), ['dmw']], ['TSH', 'mIU/L', 0.5, 4.5, 2, null, null, k('TSH'), ['dmw']], ['Anti tTG IgA', 'U/mL', 0, 10, 0, null, null, k('TTG'), ['dmw']]
     ] },
     { he: 'בדיקות גזים', en: 'Blood gases', kinds: ['vbg', 'abg'], rows: [
-      ['pH-WB', '', 7.31, 7.41, 3, 7.0, 7.6, k('pH')], ['pCO2-WB', 'mmHg', 40, 52, 1, null, null, k('pCO2')], ['HCO3-WB', 'mmol/L', 22, 26, 1, 10, null, k('HCO3')],
-      ['ABE-WB', 'mmol/L', -2, 2, 1, null, null, BE], ['Sodium-WB', 'mmol/L', 135, 145, 0, 120, 160, k('Na')], ['Potassium-WB', 'mmol/L', 3.5, 5.1, 1, 2.5, 6.5, k('K')],
+      ['pH-WB', '', 7.31, 7.41, 3, 7.2, 7.6, k('pH')], ['pCO2-WB', 'mmHg', 40, 52, 1, null, null, k('pCO2')], ['HCO3-WB', 'mmol/L', 22, 26, 1, 10, null, k('HCO3')],
+      ['ABE-WB', 'mmol/L', -2, 2, 1, null, null, BE], ['Sodium-WB', 'mmol/L', 135, 145, 0, 125, 155, k('Na')], ['Potassium-WB', 'mmol/L', 3.5, 5.1, 1, 3.0, 6.0, k('K')],
       ['Chloride-WB', 'mmol/L', 98, 107, 0, null, null, k('Cl')], ['Glucose-WB', 'mg/dL', 70, 110, 0, 50, 500, k('G')], ['Lactate-WB', 'mmol/L', 0.5, 2.2, 1, null, 4, k('lact')]
     ] },
     { he: 'המטולוגיה', en: 'Hematology', kinds: ['cbc'], rows: [
@@ -120,46 +122,73 @@
     ] }
   ];
   const TXT = ['ua', 'tns', 'bcx', 'csf', 'dmwab', 'cxr', 'usabd', 'ct'];
-  /* cols: [{ d: 'dd/mm/yy', h: 'hh:mm', hl, rs: [{ kind, v, pend, ix }] }], newest first; ctx.name(kind) names a text result */
-  function cumulative(cols, ctx) {
-    const he = ctx.he;
+  /* cols: [{ d: 'dd/mm/yy', h: 'hh:mm', t, hl, rs: [{ kind, v, pend, ix }] }], newest first; ctx.name(kind) names a text
+     result, ctx.filter limits to one section; test names open a trend (data-tr = "section:row") */
+  function grid(cols, ctx) {
+    const secs = [];
+    CUM.forEach((sec, si) => {
+      if (ctx.filter != null && ctx.filter !== si) return;
+      const rows = [];
+      sec.rows.forEach((R, ri) => {
+        const kinds = R[8] || sec.kinds;
+        const vals = cols.map(c => { const r = c.rs.find(r => kinds.includes(r.kind) && !r.pend && R[7](r.v) != null); return r ? R[7](r.v) : c.rs.some(r => kinds.includes(r.kind) && r.pend) ? '…' : null; });
+        if (vals.some(x => x != null)) rows.push({ R, vals, id: si + ':' + ri });
+      });
+      if (rows.length) secs.push({ sec, rows });
+    });
+    let txt = [];
+    if (ctx.filter == null || ctx.filter === CUM.length) {
+      const kinds = [...new Set(cols.flatMap(c => c.rs.filter(r => TXT.includes(r.kind)).map(r => r.kind)))];
+      txt = kinds.map(kd => ({ kd, cells: cols.map(c => c.rs.find(r => r.kind === kd) || null) }));
+    }
+    /* keep only the sample times that have something to show */
+    const keep = cols.map((c, i) => secs.some(x => x.rows.some(r => r.vals[i] != null)) || txt.some(t => t.cells[i]));
+    return { secs, txt, keep };
+  }
+  function cumulative(cols0, ctx) {
+    const he = ctx.he, G = grid(cols0, ctx), cols = cols0.filter((c, i) => G.keep[i]), K = v => v.filter((x, i) => G.keep[i]);
     const cell = (x, R, hl) => {
       const lo = R[2], hi = R[3], dp = R[4], pl = R[5], ph = R[6];
       const f = pl != null && x < pl ? 'PL' : ph != null && x > ph ? 'PH' : x < lo ? 'L' : x > hi ? 'H' : '';
       const cls = (hl ? 'hl ' : '') + (f ? (f[0] === 'P' ? 'cpan' : 'cabn') : '');
       return `<td class="${cls}"><span>${fx(x, dp)}</span>${f ? `<i>${f.endsWith('L') ? '↓' : '↑'}</i>` : ''}</td>`;
     };
-    const head = `<tr><th class="tn">${he ? 'בדיקות' : 'Tests'}</th><th>${he ? 'יחידות' : 'Units'}</th><th>${he ? 'ערכי ייחוס' : 'Reference'}</th>${cols.map(c => `<th class="${c.hl ? 'hl' : ''}">${c.d}<br>${c.h}</th>`).join('')}</tr>`;
     const span = 3 + cols.length;
     let body = '';
-    CUM.forEach(sec => {
-      if (!cols.some(c => c.rs.some(r => sec.kinds.includes(r.kind)))) return;
-      let rows = '';
-      sec.rows.forEach(R => {
-        const kinds = R[8] || sec.kinds;
-        const vals = cols.map(c => {
-          const r = c.rs.find(r => kinds.includes(r.kind) && !r.pend && R[7](r.v) != null);
-          return r ? R[7](r.v) : c.rs.some(r => kinds.includes(r.kind) && r.pend) ? '…' : null;
-        });
-        if (vals.every(x => x == null)) return;
-        rows += `<tr><td class="tn"><u>${esc(R[0])}</u></td><td class="u">${esc(R[1])}</td><td class="rg">${R[2]}-${R[3]}</td>${vals.map((x, i) => x == null ? `<td class="${cols[i].hl ? 'hl' : ''}"></td>` : x === '…' ? `<td class="pend${cols[i].hl ? ' hl' : ''}">…</td>` : cell(x, R, cols[i].hl)).join('')}</tr>`;
+    G.secs.forEach(({ sec, rows }) => {
+      body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${esc(he ? sec.he : sec.en)}</span></td></tr>`;
+      rows.forEach(({ R, vals, id }) => {
+        body += `<tr><td class="tn"><button class="ch-tn" data-tr="${id}">${esc(R[0])}</button></td><td class="u">${esc(R[1])}</td><td class="rg">${R[2]}-${R[3]}</td>${K(vals).map((x, i) => x == null ? `<td class="${cols[i].hl ? 'hl' : ''}"></td>` : x === '…' ? `<td class="pend${cols[i].hl ? ' hl' : ''}">…</td>` : cell(x, R, cols[i].hl)).join('')}</tr>`;
       });
-      if (rows) body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${esc(he ? sec.he : sec.en)}</span></td></tr>` + rows;
     });
-    const tcols = cols.map(c => c.rs.filter(r => TXT.includes(r.kind)));
-    const tk = [...new Set(tcols.flat().map(r => r.kind))];
-    if (tk.length) {
+    if (G.txt.length) {
       body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${he ? 'שתן, מיקרוביולוגיה, בנק דם ודימות' : 'Urine, microbiology, blood bank, imaging'}</span></td></tr>`;
-      tk.forEach(kd => {
-        body += `<tr><td class="tn" colspan="3"><u dir="auto">${esc(ctx.name(kd))}</u></td>${tcols.map((rs, i) => { const r = rs.find(r => r.kind === kd); return `<td class="${cols[i].hl ? 'hl' : ''}">${!r ? '' : r.pend ? '<span class="pend">…</span>' : `<button class="ch-doc" data-ri="${r.ix}" title="${esc(ctx.name(kd))}">📄</button>`}</td>`; }).join('')}</tr>`;
+      G.txt.forEach(({ kd, cells }) => {
+        body += `<tr><td class="tn" colspan="3"><span class="ch-tx" dir="auto">${esc(ctx.name(kd))}</span></td>${K(cells).map((r, i) => `<td class="${cols[i].hl ? 'hl' : ''}">${!r ? '' : r.pend ? '<span class="pend">…</span>' : `<button class="ch-doc" data-ri="${r.ix}" title="${esc(ctx.name(kd))}">📄</button>`}</td>`).join('')}</tr>`;
       });
     }
+    const head = `<tr><th class="tn">${he ? 'בדיקות' : 'Tests'}</th><th class="u">${he ? 'יחידות' : 'Units'}</th><th class="rg">${he ? 'ערכי ייחוס' : 'Reference'}</th>${cols.map(c => `<th class="${c.hl ? 'hl' : ''}">${c.d}<br>${c.h}</th>`).join('')}</tr>`;
     const legend = ['L', 'H', 'VL', 'VH', 'PL', 'PH'].map(x => `<b class="lg-${x}">${x}</b>`).join('');
+    const opts = [[-1, he ? '-כל המדבקות-' : '-All sections-']].concat(CUM.map((c, i) => [i, he ? c.he : c.en]), [[CUM.length, he ? 'שתן, מיקרו, דימות' : 'Urine, micro, imaging']]);
     return `<div class="cham" dir="ltr"><div class="ch-title"><i>e</i><span dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</span> -- Webpage Dialog</div>
-      <div class="ch-bar"><div class="ch-legend">${legend}</div><span class="ch-pt" dir="rtl">${esc(ctx.pt)}</span><span class="ch-sel" dir="rtl">${he ? '-כל המדבקות-' : '-All labels-'} ▾</span></div>
+      <div class="ch-bar"><div class="ch-legend">${legend}</div><span class="ch-pt" dir="rtl">${esc(ctx.pt)}</span><select class="ch-sel" data-chf dir="rtl" aria-label="${he ? 'סינון' : 'Filter'}">${opts.map(([v, t]) => `<option value="${v}"${(ctx.filter ?? -1) === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
       <div class="ch-ser" dir="rtl">${he ? 'סידרה 1 מתוך 1' : 'Series 1 of 1'}</div>
-      <div class="ch-scroll">${body ? `<table class="ch-t"><thead>${head}</thead><tbody>${body}</tbody></table>` : `<p class="ch-empty" dir="rtl">${he ? 'אין עדיין תוצאות' : 'No results yet'}</p>`}</div></div>`;
+      <div class="ch-scroll">${body ? `<table class="ch-t"><thead>${head}</thead><tbody>${body}</tbody></table>` : `<p class="ch-empty" dir="rtl">${he ? 'אין עדיין תוצאות' : 'No results yet'}</p>`}</div>
+      <div class="ch-trend" hidden></div></div>`;
+  }
+  /* one test over time, like the system's graph button */
+  function trend(cols0, id, ctx) {
+    const [si, ri] = id.split(':').map(Number), sec = CUM[si], R = sec.rows[ri], kinds = R[8] || sec.kinds;
+    const pts = cols0.slice().reverse().map(c => { const r = c.rs.find(r => kinds.includes(r.kind) && !r.pend && R[7](r.v) != null); return r ? { y: +R[7](r.v), l: c.h, t: c.t } : null; }).filter(Boolean);
+    if (!pts.length) return '';
+    const W = 560, H = 170, lo = Math.min(R[2], ...pts.map(p => p.y)), hi = Math.max(R[3], ...pts.map(p => p.y)), pad = (hi - lo) * 0.12 || 1, y0 = lo - pad, y1 = hi + pad;
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t, X = t => 44 + (W - 64) * (pts.length > 1 ? (t - t0) / (t1 - t0 || 1) : 0.5), Y = v => 14 + (H - 42) * (1 - (v - y0) / (y1 - y0));
+    const band = `<rect x="44" y="${Y(R[3])}" width="${W - 60}" height="${Math.max(1, Y(R[2]) - Y(R[3]))}" fill="#cfe8cf" opacity=".7"/>`;
+    const ticks = [y0 + pad, (y0 + y1) / 2, y1 - pad].map(v => `<text x="38" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#33475b">${fx(v, R[4])}</text>`).join('');
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
+    const dots = pts.map(p => { const out = p.y < R[2] || p.y > R[3]; return `<circle cx="${X(p.t)}" cy="${Y(p.y)}" r="4" fill="${out ? '#d9262c' : '#1d3fae'}"/><text x="${X(p.t)}" y="${Y(p.y) - 8}" text-anchor="middle" font-size="11" fill="#1d2733">${fx(p.y, R[4])}</text><text x="${X(p.t)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="#33475b">${p.l}</text>`; }).join('');
+    return `<div class="ch-trhd"><b>${esc(R[0])}${R[1] ? ` (${esc(R[1])})` : ''}</b><span>${ctx.he ? 'טווח ייחוס' : 'Reference'} ${R[2]}-${R[3]}</span><button class="ch-x" data-trx aria-label="${ctx.he ? 'סגירה' : 'Close'}">✕</button></div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(R[0])}">${band}${ticks}<path d="${path}" fill="none" stroke="#1d3fae" stroke-width="2"/>${dots}</svg>`;
   }
   function abnormal(kind, v) { const P = PANELS[kind]; return !!P && P.keys.some(k => v[k] != null && REF[k] && (+v[k] < REF[k][3] || +v[k] > REF[k][4])); }
-  window.RV = { ecg12, ecgText, gasSlip, meter, report, abnormal, cumulative, CUM_KINDS: CUM.flatMap(x => x.kinds).concat(TXT) };
+  window.RV = { ecg12, ecgText, gasSlip, meter, report, abnormal, cumulative, trend, CUM_KINDS: CUM.flatMap(x => x.kinds).concat(TXT) };
 })();

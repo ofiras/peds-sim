@@ -56,7 +56,8 @@
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
     s.RR = s.vent ? 22 : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
     s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99);
-    s.CRT = Math.round((2 + Math.max(0, defPct - 4) * 0.35) * 2) / 2;
+    s.CRT = Math.round((2 + Math.max(0, defPct - 6) * 0.45) * 2) / 2;
+    if (s.arrestAt != null) { s.HR = 45; s.SBP = 150; s.RR = s.vent ? 22 : 4; s.SpO2 = s.vent ? 96 : 78; }
     /* neurology */
     let g = 15;
     if (s.pH < 7.1) g--;
@@ -111,7 +112,7 @@
     const fI = Math.pow(clamp(I / 0.1, 0, 1.5), 0.8);
     const prod = 90 * (1 - 0.85 * clamp(I / 0.05, 0, 1));
     const brain = 40 * clamp(s.G / 80, 0, 1);
-    const upt = 300 * sens * fI * s.G / (s.G + 300);
+    const upt = 200 * sens * fI * s.G / (s.G + 300);
     const renal = s.G > 180 ? 0.1 * (s.G - 180) * s.perf : 0;
     const gir = dexMg / w / dt;
     const ecf = s.wt0 * 250 - s.deficit * 0.6;
@@ -125,7 +126,7 @@
     s.A = Math.max(0, s.A + (prodA - clearA) * h - (s.bicarbNow || 0));
     s.bicarbNow = 0;
     /* hyperchloremia from chloride-rich fluids, slowly excreted */
-    s.clD = Math.max(0, s.clD + 0.3 * (cl - 104 * vol / 1000) / (ecf / 1000) - 0.03 * s.clD * h);
+    s.clD = Math.max(0, s.clD + 0.2 * (cl - 104 * vol / 1000) / (ecf / 1000) - 0.03 * s.clD * h);
     /* potassium and phosphate losses in urine, replacement in fluids (1:1 KCl/KPhos counts as potassium) */
     s.Kdef = Math.max(-2 * w, s.Kdef + 42 * uo * h / 1000 - kIn - (s.kPO || 0));
     s.kPO = 0;
@@ -141,7 +142,9 @@
       if (osmo) s.ce = Math.max(0, s.ce - 0.9 * h);
       else if (s.ce < peak && s.ceDrive > 0.2) s.ce = Math.min(peak, s.ce + grow * h);
       else if (s.ceDrive <= 0.2) s.ce = Math.max(0, s.ce - 0.2 * h);
-      if (s.ce >= (s.vent ? 1.05 : 0.95)) { s.dead = true; s.deadAt = s.t; }
+      /* herniation: a 10-minute peri-arrest window (apnea, Cushing response) in which osmotherapy and intubation can still save him */
+      if (s.ce >= (s.vent ? 1.05 : 0.95)) { if (s.arrestAt == null) s.arrestAt = s.t; else if (s.t - s.arrestAt >= 10) { s.dead = true; s.deadAt = s.t; } }
+      else s.arrestAt = null;
     }
     derive(s);
     /* hourly record: glucose fall, osmolality fall, corrected sodium trend (risk) */
