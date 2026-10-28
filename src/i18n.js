@@ -48,7 +48,7 @@ window.I18N = {
     },
     flow: { time: 'Time', G: 'Glucose', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'Na', NaC: 'Na corrected', K: 'K', Cl: 'Cl', AG: 'Anion gap', eOsm: 'Eff. osmolality', BUN: 'BUN', Cr: 'Creatinine', Ca: 'Ca', P: 'Phosphate', Mg: 'Mg', BHB: 'Ketones', lact: 'Lactate', GCS: 'GCS', pupils: 'Pupils', UO: 'Urine mL/kg/h', IN: 'In (mL)', OUT: 'Out (mL)' },
     pending: 'pending', endCase: 'End case', endQ: 'End the case and see the debrief?', yes: 'Yes', no: 'No',
-    debrief: 'Debrief', score: 'Score', survived: 'Outcome', needed: 'What was needed', charts: 'Course', rubric: 'Checklist', again: 'Play again', home: 'Home',
+    tl: { title: 'Timeline', cats: { tx: 'Treatments', proc: 'Procedures & nursing', call: 'Team & transfers', res: 'Results', alert: 'Alerts', obj: 'Stopped / overridden' }, stoppedBy: ['Stopped by the attending', 'Stopped by the nurse'], overrode: 'Done against the attending', reported: 'reported', inPicu: 'Arrived in the PICU', inWard: 'Arrived on the ward', ate: 'Ate a meal', marks: 'Triangles on the charts = treatments (hover for details).' }, debrief: 'Debrief', score: 'Score', survived: 'Outcome', needed: 'What was needed', charts: 'Course', rubric: 'Checklist', again: 'Play again', home: 'Home',
     pupilsV: { normal: 'equal, reactive', sluggish: 'sluggish', unequal: 'unequal' },
     lookNow: 'Now', examVent: (g, p, crt) => `Intubated and sedated. GCS ${g}T, pupils ${p}. CRT ${crt} s. Ventilated, chest moving equally.`, examNow: (s) => `GCS ${s.GCS}, pupils ${s.pupilsTxt}. CRT ${s.CRT} s. ${s.kuss ? 'Kussmaul breathing.' : 'Breathing calmly.'} ${s.headache ? 'Complains of headache.' : ''}`,
     speed: 'Speed', perSec: x => x < 1 ? '1 min / 2 s' : `${x} min/s`
@@ -101,7 +101,7 @@ window.I18N = {
     },
     flow: { time: 'שעה', G: 'סוכר', pH: 'pH', pCO2: 'pCO₂', HCO3: 'HCO₃', Na: 'נתרן', NaC: 'נתרן מתוקן', K: 'אשלגן', Cl: 'כלור', AG: 'פער אניונים', eOsm: 'אוסמולליות אפקטיבית', BUN: 'BUN', Cr: 'קראטינין', Ca: 'סידן', P: 'זרחן', Mg: 'מגנזיום', BHB: 'קטונים', lact: 'לקטט', GCS: 'GCS', pupils: 'אישונים', UO: 'שתן מ״ל/ק״ג/שע׳', IN: 'נכנס (מ״ל)', OUT: 'יצא (מ״ל)' },
     pending: 'ממתין', endCase: 'סיום המקרה', endQ: 'לסיים את המקרה ולראות את התחקיר?', yes: 'כן', no: 'לא',
-    debrief: 'תחקיר', score: 'ציון', survived: 'תוצאה', needed: 'מה היה צריך', charts: 'מהלך', rubric: 'רשימת בדיקה', again: 'שוב', home: 'בית',
+    tl: { title: 'ציר זמן', cats: { tx: 'טיפולים', proc: 'פעולות וסיעוד', call: 'צוות והעברות', res: 'תוצאות', alert: 'התראות', obj: 'נעצר / נגד התנגדות' }, stoppedBy: ['נעצר על ידי הכונן', 'נעצר על ידי האחות'], overrode: 'בוצע נגד התנגדות הכונן', reported: 'פוענח', inPicu: 'הגיע לטיפול נמרץ', inWard: 'הגיע למחלקה', ate: 'אכל ארוחה', marks: 'משולשים בגרפים = טיפולים (ריחוף לפרטים).' }, debrief: 'תחקיר', score: 'ציון', survived: 'תוצאה', needed: 'מה היה צריך', charts: 'מהלך', rubric: 'רשימת בדיקה', again: 'שוב', home: 'בית',
     pupilsV: { normal: 'שווים ומגיבים', sluggish: 'מגיבים באיטיות', unequal: 'לא שווים' },
     lookNow: 'כעת', examVent: (g, p, crt) => `מונשם ומורדם. GCS ${g}T, אישונים ${p}. מילוי קפילרי ${crt} שנ׳. מונשם, תנועות בית חזה שוות.`, examNow: (s) => `GCS ${s.GCS}, אישונים ${s.pupilsTxt}. מילוי קפילרי ${s.CRT} שנ׳. ${s.kuss ? 'נשימת קוסמאול.' : 'נושם בשקט.'} ${s.headache ? 'מתלונן על כאב ראש.' : ''}`,
     speed: 'מהירות', perSec: x => x < 1 ? 'דקה ל-2 שנ׳' : `${x} דק׳/שנ׳`

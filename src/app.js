@@ -1022,23 +1022,62 @@
   }
 
   /* ---------------- debrief ---------------- */
+  /* debrief timeline: everything that was done, what came back and what happened, in order; treatments also mark the charts */
+  const TL_CATS = ['tx', 'proc', 'call', 'res', 'alert', 'obj'];
+  function tlEvents() {
+    const he = LANG === 'he', end = S.m.t, E = [], add = (t, cat, txt, sub) => { if (t != null && t <= end) E.push({ t, cat, txt, sub }); };
+    const NURS = ['weigh', 'npo', 'headUp', 'monitor', 'neuro', 'io', 'po', 'examQ', 'historyQ', 'ecg'], CALL = ['att', 'endo', 'surg', 'picu', 'ward'];
+    const seen = {};
+    S.log.forEach(e => {
+      if (TX.includes(e.id)) add(e.t, 'tx', oname(e.id), [txText(e), e.p && e.p.instr].filter(Boolean).join(' · '));
+      else if (e.id === 'stop') add(e.t, 'tx', L.stopped(oname(e.p.k)));
+      else if (PROC[e.id]) add(e.t, 'proc', oname(e.id), L.procInfo(PROC[e.id].by === 'md', PROC[e.id].min));
+      else if (NURS.includes(e.id)) { if ((e.id === 'examQ' || e.id === 'historyQ') && seen[e.id]) return; seen[e.id] = 1; add(e.t, 'proc', oname(e.id)); }
+      else if (CALL.includes(e.id)) add(e.t, 'call', oname(e.id));
+      else if (e.id === 'objected') add(e.t, 'obj', `${L.tl.stoppedBy[e.p.who === 'nurse' ? 1 : 0]}: ${oname(e.p.k)}`);
+      else if (e.id === 'overrode') add(e.t, 'obj', `${L.tl.overrode}: ${oname(e.p.k)}`);
+    });
+    const K = [['pH', 'pH', 2], ['HCO3', 'HCO₃', 1], ['K', 'K', 1], ['Na', 'Na', 0], ['G', he ? 'סוכר' : 'Glu', 0], ['BHB', he ? 'קטונים' : 'BHB', 1]];
+    S.res.forEach(r => {
+      if (r.ready > end) return;
+      const v = r.v || {}, nums = K.filter(([k]) => typeof v[k] === 'number').map(([k, n, dp]) => `${n} ${(+v[k]).toFixed(dp)}`);
+      if (nums.length) add(r.ready, 'res', oname(r.kind), nums.join(' · '));
+      else if (r.kind === 'ecg') add(r.ready, 'res', oname(r.kind), RV.ecgText(v, he).interp);
+      else if (v.txt != null) add(r.ready, 'res', oname(r.kind), L.tl.reported);
+    });
+    S.msgs.forEach(x => { if (x.crit && x.kind !== 'sys' && !/[?？]$/.test(x.text.trim())) add(x.t, 'alert', x.text); });
+    if (S.flags.picuMovedAt != null) add(S.flags.picuMovedAt, 'call', L.tl.inPicu);
+    if (S.flags.wardMovedAt != null) add(S.flags.wardMovedAt, 'call', L.tl.inWard);
+    if (S.flags.poAt != null) add(S.flags.poAt, 'proc', L.tl.ate);
+    if (S.handover != null) add(S.handover, 'call', L.msgs.hoDone);
+    if (S.m.dead) add(S.m.deadAt ?? end, 'alert', L.outDied);
+    const order = { alert: 0, call: 1, tx: 2, proc: 3, obj: 4, res: 5 };
+    return E.sort((a, b) => a.t - b.t || order[a.cat] - order[b.cat]);
+  }
+  function timelineHTML(E) {
+    const cnt = c => E.filter(e => e.cat === c).length;
+    return `<h3>${esc(L.tl.title)}</h3><div class="tlf">${TL_CATS.filter(cnt).map(c => `<button class="tlc on c-${c}" data-tlc="${c}">${esc(L.tl.cats[c])} <small>${cnt(c)}</small></button>`).join('')}</div>
+      <ol class="tl">${E.map(e => `<li class="c-${e.cat}"><time>${hhmm(C.startClock + e.t)}<small>+${dur(e.t)}</small></time><i></i><span><b>${esc(e.txt)}</b>${e.sub ? `<em>${esc(e.sub)}</em>` : ''}</span></li>`).join('')}</ol>`;
+  }
   function chart(key, lab, lo, hi, color) {
     const H = S.m.hist; if (!H.length) return '';
     const W = 320, Ht = 110, t1 = H[H.length - 1].t || 1, vs = H.map(h => h[key]), mn = Math.min(lo, ...vs), mx = Math.max(hi, ...vs);
     const x = t => 30 + (W - 36) * t / t1, y = v => 8 + (Ht - 26) * (1 - (v - mn) / (mx - mn || 1));
     const path = H.map((h, i) => `${i ? 'L' : 'M'}${x(h.t).toFixed(1)},${y(h[key]).toFixed(1)}`).join('');
-    return `<figure class="ch"><figcaption>${esc(lab)}</figcaption><svg viewBox="0 0 ${W} ${Ht}"><rect x="30" y="${y(hi)}" width="${W - 36}" height="${Math.max(0, y(lo) - y(hi))}" fill="rgba(62,240,143,.08)"/><path d="${path}" fill="none" stroke="${color}" stroke-width="1.8"/>
+    return `<figure class="ch"><figcaption>${esc(lab)}</figcaption><svg viewBox="0 0 ${W} ${Ht}"><rect x="30" y="${y(hi)}" width="${W - 36}" height="${Math.max(0, y(lo) - y(hi))}" fill="rgba(62,240,143,.08)"/>${(S.tlTx || []).filter(e => e.t <= t1).map(e => `<line x1="${x(e.t).toFixed(1)}" x2="${x(e.t).toFixed(1)}" y1="8" y2="${Ht - 18}" stroke="#7aa7ff" stroke-opacity=".22"><title>${hhmm(C.startClock + e.t)} ${esc(e.txt)}${e.sub ? ' · ' + esc(e.sub) : ''}</title></line><path d="M${x(e.t).toFixed(1)},${Ht - 18} l-3,-5 h6z" fill="#7aa7ff" opacity=".75"><title>${hhmm(C.startClock + e.t)} ${esc(e.txt)}${e.sub ? ' · ' + esc(e.sub) : ''}</title></path>`).join('')}<path d="${path}" fill="none" stroke="${color}" stroke-width="1.8"/>
       <text x="27" y="${y(mx) + 4}" text-anchor="end" fill="#8aa4ae" font-size="9">${mx >= 20 ? Math.round(mx) : r1(mx)}</text><text x="27" y="${y(mn)}" text-anchor="end" fill="#8aa4ae" font-size="9">${mn >= 20 ? Math.round(mn) : r1(mn)}</text>${Array.from({ length: Math.floor(t1 / 120) + 1 }, (_, i) => i * 120).map(tt => `<line x1="${x(tt)}" x2="${x(tt)}" y1="${Ht - 18}" y2="${Ht - 14}" stroke="#4d6772"/><text x="${x(tt)}" y="${Ht - 4}" text-anchor="${x(tt) > W - 24 ? 'end' : 'middle'}" fill="#8aa4ae" font-size="9">${hhmm(C.startClock + tt)}</text>`).join('')}<text x="${W - 4}" y="${y(hi) + 9}" text-anchor="end" fill="#3ef08f" font-size="8.5" opacity=".8">${lo >= 20 ? Math.round(lo) : r1(lo)}–${hi >= 20 ? Math.round(hi) : r1(hi)}</text></svg></figure>`;
   }
   function endCase() {
     if (!S || S.ended) return;
     S.ended = true; S.speed = 0; stopLoop(); $$('.scrim,.redeb').forEach(x => x.remove());
-    const { R, pct } = rubric(), SRC = C.src;
+    const { R, pct } = rubric(), SRC = C.src, TLE = tlEvents(); S.tlTx = TLE.filter(e => e.cat === 'tx');
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
       <div class="score"><b>${pct}%</b><span>${esc(S.m.dead ? L.outDied : S.m.injury > 0 ? L.outInjury : L.outOk)}${S.handover != null ? ' · ' + esc(L.msgs.hoDone) : ''} · +${esc(dur(S.m.t))}</span></div>
       <h3>${esc(L.rubric)}</h3><ul class="rub">${R.map(r => `<li class="${r.ho ? 'na' : r.ok ? 'ok' : r.got > 0 ? 'part' : 'bad'}"><span class="mk">${r.ho ? '–' : r.ok ? '✓' : r.got > 0 ? '◐' : '✗'}</span><span>${esc(r.txt)}${r.why && !r.ok ? `<em class="why">${esc(r.why)}</em>` : ''} <small>${esc((SRC[r.src] || {})[LANG] || '')}</small></span></li>`).join('')}</ul>
-      <h3>${esc(L.charts)}</h3><div class="charts">${chart('G', L.flow.G, 150, 250, '#ffd84a')}${chart('K', L.flow.K, 4, 5, '#3ef08f')}${chart('pH', 'pH', 7.3, 7.45, '#4fc3ff')}${chart('NaC', L.flow.NaC, 135, 145, '#ff8a4c')}${chart('eOsm', L.flow.eOsm, 280, 300, '#c39bff')}${chart('GCS', 'GCS', 14, 15, '#ff6b7a')}</div>
+      <h3>${esc(L.charts)}</h3><div class="charts">${chart('G', L.flow.G, 150, 250, '#ffd84a')}${chart('K', L.flow.K, 4, 5, '#3ef08f')}${chart('pH', 'pH', 7.3, 7.45, '#4fc3ff')}${chart('NaC', L.flow.NaC, 135, 145, '#ff8a4c')}${chart('eOsm', L.flow.eOsm, 280, 300, '#c39bff')}${chart('GCS', 'GCS', 14, 15, '#ff6b7a')}</div><p class="tlk">${esc(L.tl.marks)}</p>
+      ${timelineHTML(TLE)}
       <div class="row"><button class="btn primary" data-again>${esc(L.again)}</button><button class="btn ghost" data-home2>${esc(L.home)}</button><button class="btn ghost" data-lang>${esc(L.lang)}</button><button class="btn ghost" data-chart>${esc(L.toChart)}</button></div>`, 'wide');
+    md.el.addEventListener('click', e => { const tc = e.target.closest('[data-tlc]'); if (tc) { tc.classList.toggle('on'); $('.tl', md.el).classList.toggle('h-' + tc.dataset.tlc, !tc.classList.contains('on')); return; } });
     md.el.addEventListener('click', e => { if (e.target.closest('[data-chart]')) { md.close(); const b = document.createElement('button'); b.className = 'btn primary redeb'; b.textContent = L.debrief; b.onclick = () => { b.remove(); S.ended = false; endCase(); }; document.body.appendChild(b); return; } if (e.target.closest('[data-again]')) { md.close(); startCase(); } else if (e.target.closest('[data-home2]')) { md.close(); home(); } });
   }
 

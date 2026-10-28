@@ -1181,6 +1181,20 @@ svg.tl .tlbt{font-size:9px}svg.tl .tlbt.ok{fill:var(--good)}svg.tl .tlbt.bad{fil
 #txL{max-height:240px}#txL b{color:var(--fg);font-weight:600}.txd{display:block;color:var(--mut);font-size:11.5px;unicode-bidi:plaintext}html[dir=rtl] .txd{text-align:right}
 .holeft{margin:8px 0 4px;padding-inline-start:20px;display:grid;gap:4px;color:var(--fg)}
 .rub small{color:var(--dim);font-family:var(--mono);font-size:11px}
+.tlk{margin:4px 0 0;font-size:12px;color:var(--dim)}
+.tlf{display:flex;flex-wrap:wrap;gap:6px}
+.tlc{--c:var(--dim);background:transparent;border:1px solid var(--line2);color:var(--mut);border-radius:999px;padding:3px 10px;font:12.5px var(--sans,inherit);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.tlc::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--c)}
+.tlc.on{border-color:var(--c);color:var(--fg)}.tlc small{color:var(--dim)}
+.c-tx{--c:#7aa7ff}.c-proc{--c:#c39bff}.c-call{--c:#ffb35c}.c-res{--c:#8fb3be}.c-alert{--c:#ff5d6c}.c-obj{--c:#ff8a4c}
+.tl{list-style:none;margin:10px 0 0;padding:0;max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+.tl li{display:grid;grid-template-columns:62px 14px 1fr;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);align-items:start;font-size:13.5px}
+.tl li:last-child{border-bottom:0}
+.tl time{font-family:var(--mono);font-size:12.5px;color:var(--fg);display:grid;line-height:1.2}.tl time small{font-size:10.5px;color:var(--dim)}
+.tl i{width:9px;height:9px;border-radius:50%;background:var(--c);margin-top:5px;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+.tl b{font-weight:600;color:var(--fg)}.tl em{display:block;font-style:normal;color:var(--mut);font-size:12.5px;unicode-bidi:plaintext}html[dir=rtl] .tl em{text-align:right}
+.tl li.c-alert b{color:#ff8a95}.tl li.c-res b{font-weight:500;color:var(--mut)}
+.tl.h-tx .c-tx,.tl.h-proc .c-proc,.tl.h-call .c-call,.tl.h-res .c-res,.tl.h-alert .c-alert,.tl.h-obj .c-obj{display:none}
 .charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .ch{margin:0;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px}.ch figcaption{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
 @media (max-width:720px){ .oform label{grid-template-columns:1fr;gap:4px} .speed .sp{padding:6px 7px} .simbar .in{flex-wrap:wrap} }
