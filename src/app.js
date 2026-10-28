@@ -609,6 +609,107 @@
       <div class="actl"><span class="eyebrow">${esc(L.active)}</span>${rows.length ? rows.map(([k, txt]) => `<div class="act"><span>${esc(txt)}</span>${k ? `<button class="btn sm ghost" data-stop="${k}">${esc(L.stop)}</button>` : ''}</div>`).join('') : `<p class="muted">${esc(L.none)}</p>`}</div>`;
   }
   const renderOrders = () => renderSitu();
+  /* ---------------- medication orders, laid out like the ED's order dialog ----------------
+     the dose is written as a total (or per kg with the ⟷ button); it is turned into per kg by the weight on file,
+     which is the stated 35 kg until he is weighed */
+  const MED = {
+    bolus: { k: 'mlkg', cat: p => `inf ${p.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} inf bag (${p.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE'})`, over: true },
+    dexBolus: { k: 'mlkg', cat: () => 'inf DEXTROSE 10% inf bag (DEXTROSE)' },
+    prbc: { k: 'mlkg', cat: () => 'bld PACKED RED CELLS unit (RBC, LEUKOREDUCED)' }, ffp: { k: 'mlkg', cat: () => 'bld FRESH FROZEN PLASMA unit (PLASMA)' },
+    plt: { k: 'mlkg', cat: () => 'bld PLATELETS apheresis unit (PLATELETS)' }, albumin: { k: 'mlkg', cat: () => 'inf ALBUMIN 5% inf bag (ALBUMIN HUMAN)' },
+    main: { cat: () => 'inf SOLUTION (maintenance + deficit)', cont: true },
+    insDrip: { k: 'dose', cat: () => 'vial INSULIN REGULAR (ACTRAPID) 100 u/ml vial (INSULIN HUMAN)', cont: true, kgFirst: true },
+    insBolus: { k: 'dose', cat: () => 'vial INSULIN REGULAR (ACTRAPID) 100 u/ml vial (INSULIN HUMAN)' },
+    scRapid: { k: 'dose', cat: () => 'pen INSULIN ASPART (NOVORAPID) 100 u/ml pen (INSULIN ASPART)', route: 'S.C' },
+    scBasal: { k: 'dose', cat: () => 'pen INSULIN GLARGINE (LANTUS) 100 u/ml pen (INSULIN GLARGINE)', route: 'S.C' },
+    mannitol: { k: 'gkg', cat: () => 'inf MANNITOL 20% inf bag (MANNITOL)' }, hts: { k: 'mlkg', cat: () => 'inf SODIUM CHLORIDE 3% inf bag (SODIUM CHLORIDE)' },
+    bicarb: { k: 'meqkg', cat: () => 'amp SODIUM BICARBONATE 8.4% amp (SODIUM BICARBONATE)' },
+    kpo: { k: 'meqkg', cat: () => 'syr POTASSIUM CHLORIDE (SOPA-K) oral syr (POTASSIUM CHLORIDE)', route: 'P.O' },
+    kphos: { k: 'mmolkg', cat: () => 'vial POTASSIUM PHOSPHATE 3 mmol/ml vial (POTASSIUM PHOSPHATE)' },
+    cagluc: { k: 'mlkg', cat: () => 'amp CALCIUM GLUCONATE 10% amp (CALCIUM GLUCONATE)' },
+    ondan: { k: 'mgkg', cat: () => 'amp ONDANSETRON 4mg/2ml amp (ONDANSETRON)' }, paracet: { k: 'mgkg', cat: () => 'inf PARACETAMOL 10mg/ml inf bag (PARACETAMOL)' },
+    morphine: { k: 'mgkg', cat: () => 'amp MORPHINE 10mg/ml amp (MORPHINE)' }, midaz: { k: 'mgkg', cat: () => 'amp MIDAZOLAM 5mg/ml amp (MIDAZOLAM)' },
+    ceftriax: { k: 'mgkg', cat: () => 'vial CEFTRIAXONE 1g vial (CEFTRIAXONE)' }
+  };
+  const MU = { mlkg: ['ml', 'ml/kg'], gkg: ['g', 'g/kg'], meqkg: ['mEq', 'mEq/kg'], mmolkg: ['mmol', 'mmol/kg'], mgkg: ['mg', 'mg/kg'] };
+  const DIL = { insDrip: 'INSULIN REGULAR 10 units in 100 ml NaCl 0.9% (0.1 units/ml). Flush the line with 20 ml first.', insBolus: 'Not given as a bolus in DKA.', mannitol: 'Mannitol 20% undiluted, through a filter, over 20 min.', hts: 'NaCl 3% undiluted.', kphos: 'Dilute in D5W; max 0.06 mmol/kg/h.', cagluc: 'Dilute 1:1, slowly over 10 min, on a monitor.', bicarb: 'Dilute 1:1 with sterile water; never with calcium.', paracet: 'Undiluted over 15 min.', ceftriax: 'Reconstitute; IV over 30 min.', main: 'KCl 14.9% concentrate goes into the bag (max 60 mEq/L peripheral). Never as a push.' };
+  function medForm(id, preset, btn) {
+    const m = S.m, w = dw(), g = LEVEL === 'guided', he = LANG === 'he', D = MED[id], cont = !!D.cont;
+    const cur = id === 'main' && m.inf.main.rate ? Object.assign({}, m.inf.main) : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : Object.assign({}, preset);
+    const def = (FORMS[id] || []).reduce((a, [k, , d]) => (a[k] = d, a), {});
+    const unitsOf = () => id === 'insDrip' ? ['units/h', 'units/kg/h'] : D.k === 'dose' ? ['units', 'units/kg'] : MU[D.k];
+    let perKg = !!D.kgFirst;
+    const doseV = () => { const pk = cur[D.k] ?? (g ? def[D.k] : ''); return pk === '' || pk == null ? '' : perKg ? pk : r1(pk * w); };
+    const sel = (n, opts, v, lab) => `<select name="${n}">${opts.map(o => `<option value="${o}"${String(v) === String(o) ? ' selected' : ''}>${esc(lab ? lab(o) : o)}</option>`).join('')}</select>`;
+    const date = caseDate(now()), route = D.route || 'I.V';
+    const card = id === 'main'
+      ? `<div class="mo-drug"><b>inf ${sel('base', ['NS', 'HALF', 'LR'], cur.base || 'NS', v => ({ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' })[v])} + ${sel('dex', [0, 5, 10, 12.5], cur.dex ?? 0, v => v ? `DEXTROSE ${v}%` : 'NO DEXTROSE')} inf bag</b>
+          <div class="mo-add">+ amp POTASSIUM CHLORIDE (KCL) 14.9% amp ${sel('kcl', [0, 20, 40, 60], cur.kcl ?? 0)} <span>mEq/L</span></div>
+          <div class="mo-dose"><span>Rate:</span><input name="rate" type="number" step="any" inputmode="decimal" value="${cur.rate ?? ''}"><span class="mo-u">ml/hr</span></div></div>`
+      : `<div class="mo-drug"><b>${esc(D.cat(Object.assign({}, def, cur)))}</b>${id === 'bolus' ? `<div class="mo-add">${sel('fluid', ['NS', 'LR'], cur.fluid || 'NS', v => L.fl[v])}</div>` : ''}
+          <div class="mo-dose"><span>${id === 'bolus' || D.k === 'mlkg' ? 'Volume:' : 'Dose:'}</span><input name="dv" type="number" step="any" inputmode="decimal" value="${doseV()}"><select name="du" class="mo-u">${unitsOf().map((u, i) => `<option value="${i}"${+perKg === i ? ' selected' : ''}>${u}</option>`).join('')}</select><button type="button" class="mo-sw" data-sw title="${he ? 'סה״כ / לק״ג' : 'Total / per kg'}">⟷</button></div>
+          ${D.over ? `<div class="mo-dose"><span>Infuse over:</span><input name="over" type="number" step="any" inputmode="decimal" value="${cur.over ?? def.over ?? ''}"><span class="mo-u">min</span></div>` : ''}</div>`;
+    const curOrders = [m.inf.main.rate && `inf ${{ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' }[m.inf.main.base]}${m.inf.main.dex ? '+DEXTROSE ' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCL ' + m.inf.main.kcl + ' mEq/L' : ''} Rate: ${m.inf.main.rate}ml/hr CONTINUOUS`,
+      m.inf.insulin && `inf INSULIN REGULAR ${m.inf.insulin} units/kg/h (${r1(m.inf.insulin * w)} units/h) CONTINUOUS`,
+      ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`)].filter(Boolean);
+    const nb = S.nbp && S.nbp.v, at = `${hhmm(C.startClock + (S.flags.mon ? Math.floor(now() / 15) * 15 : 0))}:00 ${date.D}`;
+    const meas = [[m.temp.toFixed(1), he ? 'חום' : 'Temp'], [S.flags.mon ? m.HR : m.hist[0] ? m.hist[0].HR : m.HR, he ? 'דופק' : 'Pulse'], [nb ? `${nb.s} / ${nb.d}` : `${m.SBP} / ${m.DBP}`, he ? 'לחץ דם' : 'BP'], [m.SpO2, he ? 'סטורציה באויר חדר' : 'SpO₂ room air'], [0, he ? 'כאב' : 'Pain']];
+    const wtTxt = S.flags.weighed ? m.wt : m.wt0;
+    const md = modal(`<div class="mo" dir="ltr"><div class="mo-title"><span>▤ Medication Orders -- Webpage Dialog</span><button type="button" class="mo-x" data-x aria-label="${esc(L.back)}">✕</button></div>
+      <form class="mo-body"><div class="mo-main">
+        <section class="mo-box"><div class="mo-hd"><span><i>?</i>Medications</span><label class="mo-chk"><input type="checkbox" disabled> Daily Dose</label><span class="mo-tools"><button type="button" class="mo-b" data-dil>Dilution Instructions</button><button type="button" class="mo-b" disabled>+ Add Solution</button><button type="button" class="mo-b" disabled>+ Add Drug</button></span></div>
+          <div class="mo-card">${card}<label class="mo-chk"><input type="checkbox" disabled> Duration:</label><div class="mo-warn" id="hlp"></div></div></section>
+        <section class="mo-box"><div class="mo-hd"><span><i>?</i>Order Details <b class="mo-po">(PoOthers)</b></span></div>
+          <div class="mo-row"><span class="mo-l"><i>?</i>Route</span><select class="mo-route" disabled><option>${route}</option></select><span class="mo-ti">Taken independently <span class="mo-tog">✕ OFF</span></span></div>
+          <div class="mo-row"><span class="mo-l"><i>?</i>Type</span><span class="mo-seg">${['Continuous', 'Periodically', 'Once', 'SOS'].map(t => `<span class="${(cont ? 'Continuous' : 'Once') === t ? 'on' : ''}">${t}</span>`).join('')}</span></div>
+          <div class="mo-row mo-sep"><span class="mo-l"><i>?</i>Start at</span><span class="mo-fld">${date.D}<em>📅</em></span><span class="mo-fld sm">${hhmm(C.startClock + now())}<em>◷</em></span><span>for</span><span class="mo-fld xs"></span><span class="mo-fld sm">Days ▾</span></div>
+          <div class="mo-row"><span class="mo-l"><i>?</i>Order Expire at</span><span class="mo-fld"><em>📅</em></span><span class="mo-fld sm"><em>◷</em></span><span class="mo-green">Clear Stop Date</span></div>
+          <div class="mo-row"><span class="mo-l"><i>?</i>Hold</span><input type="checkbox" disabled></div>
+          <div class="mo-row mo-sep"><span class="mo-l"><i>?</i>Instructions</span><input name="instr" class="mo-in" autocomplete="off"></div>
+          <div class="mo-row"><button type="submit" class="mo-ok">✔ OK</button></div></section></div>
+        <aside class="mo-side">
+          <section class="mo-box"><div class="mo-hd"><span><i>?</i>Patient Details</span></div><div class="mo-pt" dir="rtl"><span class="mo-av">👤</span><div><b>${he ? 'בן ' + m.age : 'Boy, ' + m.age + 'y'}</b><div>${he ? 'גיל' : 'Age'}: ${m.age} ${he ? 'שנים' : 'y'}, ${he ? 'משקל' : 'Weight'}: ${wtTxt} ${he ? 'ק״ג' : 'kg'}</div><div>${esc(he ? { ED: 'מיון ילדים', PICU: 'טיפול נמרץ ילדים', WARD: 'מחלקת ילדים' }[S.flags.loc || 'ED'] : { ED: 'Pediatric ED', PICU: 'PICU', WARD: 'Pediatric ward' }[S.flags.loc || 'ED'])}</div></div></div></section>
+          <section class="mo-box"><div class="mo-hd"><span><i>?</i>Sensitivities</span></div><p class="mo-none">No Sensitivities</p></section>
+          <section class="mo-box"><div class="mo-hd"><span><i>?</i>Current Orders</span></div><div class="mo-cur">${curOrders.length ? curOrders.map(x => `<div>${esc(x)}</div>`).join('') : '<p class="mo-none">No current orders</p>'}</div></section>
+          <section class="mo-box"><div class="mo-hd"><span><i>?</i>Measurements</span></div><table class="mo-ms">${meas.map(([v, l]) => `<tr><td>${esc(String(v))}</td><td>${at}</td><td dir="rtl">${esc(l)}</td></tr>`).join('')}</table></section>
+          <section class="mo-box"><div class="mo-hd"><span><i>?</i>Diagnoses</span></div><p class="mo-none">No diagnoses</p></section>
+        </aside></form></div>`, 'medw');
+    const f = $('form', md.el), h = $('#hlp', md.el), mt = M.maint(w);
+    const total = () => { const v = +f.dv.value; return f.dv.value === '' ? null : perKg ? v * w : v; };
+    const live = () => {
+      h.classList.remove('warn'); let t = '';
+      if (id === 'main') t = g ? (S.flags.weighed ? '' : L.help.byHist) + L.help.maint(Math.round(mt), 0, Math.round(1.5 * mt), Math.round(2 * mt)) : '';
+      else if (total() != null) {
+        const u = unitsOf(), tv = total();
+        t = perKg ? `= ${+tv.toFixed(2)} ${u[0]}` : `= ${+(tv / w).toFixed(3)} ${u[1]}`;
+        t += ` (${wtTxt} kg${S.flags.weighed ? '' : he ? ', לפי המשקל הידוע' : ', weight on file'})`;
+        if (g && id === 'insDrip') t += ' · ' + L.help.insProt + ' ' + L.help.ins(r1(tv), r1(tv * 10));
+        if (g && id === 'mannitol') t += ' · ' + L.help.man(Math.round(tv * 5));
+      }
+      h.textContent = t;
+    };
+    f.addEventListener('input', live); live();
+    f.addEventListener('change', e => { if (e.target.name === 'du') { const tv = total(); perKg = e.target.value === '1'; if (tv != null) f.dv.value = perKg ? +(tv / w).toFixed(3) : +tv.toFixed(2); live(); } });
+    md.el.addEventListener('click', e => {
+      if (e.target.closest('[data-x]')) { md.close(); return; }
+      if (e.target.closest('[data-sw]')) { const s = f.du; s.value = s.value === '1' ? '0' : '1'; s.dispatchEvent(new Event('change', { bubbles: true })); return; }
+      if (e.target.closest('[data-dil]')) { h.textContent = DIL[id] || 'No dilution instructions for this drug.'; }
+    });
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const p = {};
+      if (id === 'main') { if (f.rate.value === '') { h.textContent = L.needVal; h.classList.add('warn'); return; } Object.assign(p, { base: f.base.value, dex: +f.dex.value, kcl: +f.kcl.value, rate: +f.rate.value }); }
+      else {
+        const tv = total(); if (tv == null || (D.over && f.over.value === '')) { h.textContent = L.needVal; h.classList.add('warn'); return; }
+        p[D.k] = +(tv / w).toFixed(3);
+        if (D.over) p.over = +f.over.value;
+        if (id === 'bolus') p.fluid = f.fluid.value;
+      }
+      if (f.instr.value.trim()) p.instr = f.instr.value.trim();
+      md.close(); order(id, p); flash(btn);
+    });
+    const first = $('input[name=dv],input[name=rate]', f); if (first) first.focus();
+  }
   function openForm(id, btn) {
     const m = S.m, w = S.flags.weighed ? m.wt : m.wt0, g = LEVEL === 'guided';
     if (id === 'insulinVial') {
@@ -619,6 +720,7 @@
     if (id === 'kclConc') { msg('sys', EXTRA[LANG].kclWhere); openForm('main'); return; }
     let preset = {};
     if (id === 'bolusNS' || id === 'bolusLR') { preset.fluid = id === 'bolusNS' ? 'NS' : 'LR'; id = 'bolus'; }
+    if (MED[id]) { medForm(id, preset, btn); return; }
     const fields = FORMS[id];
     if (!fields && PROC[id] && id !== 'iv') {
       const PR = PROC[id], cm = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><p class="muted">${esc(L.procInfo(PR.by === 'md', PR.min))}</p><div class="row"><button class="btn primary" data-ok>${esc(L.order)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
