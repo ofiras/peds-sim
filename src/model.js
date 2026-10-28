@@ -93,7 +93,7 @@
     });
     if (m.base === 'NS') s.io.inNS += m.rate * h;
     /* osmotherapy volume */
-    if (s.htsVol > 0) { const v = Math.min(s.htsVol, 12 * dt); s.htsVol -= v; vol += v; na += 513 * v / 1000; cl += 513 * v / 1000; }
+    if (s.htsVol > 0) { const v = Math.min(s.htsVol, 5 * dt); s.htsVol -= v; vol += v; na += 513 * v / 1000; cl += 513 * v / 1000; }
     if (s.manVol > 0) { const v = Math.min(s.manVol, 5 * dt); s.manVol -= v; vol += v; }
     /* outputs */
     const uo = (s.G > 180 ? 1 + Math.min(2.2, (s.G - 180) / 150) : 1.0) * w * s.perf + (s.manUntil > s.t ? 2 * w : 0);   // mL/h
