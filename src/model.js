@@ -55,7 +55,7 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(2.5 * Math.sin(s.t / 23) + 88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    s.HR = Math.round(2.5 * Math.sin(s.t / 23) + 88 + 2.5 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
     const wob = 3 * Math.sin(s.t / 37) + 2 * Math.sin(s.t / 11);   // ordinary beat-to-beat and hour-to-hour drift
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH) + wob);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS + wob * 0.6);
