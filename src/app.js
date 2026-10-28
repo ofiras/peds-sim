@@ -216,7 +216,7 @@
       case 'headUp': m.headUp = true; msg('nurse', MS.headUp); break;
       case 'neuro': case 'io': S.standing[id] = { every: 60, next: now() + 60 }; msg('nurse', oname(id) + ' ✓'); break;
       case 'att': S.att.push(now()); msg('att', m.ce > 0.25 ? MS.attCE : p.ins ? MS.attIns : MS.attGen); break;
-      case 'picu': S.flags.picu = true; S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); break;
+      case 'picu': S.flags.picu = true; S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); renderClock(); break;
       case 'endo': case 'surg': { S.flags[id] = true; const cs = (CT().consult || {})[id]; msg('sys', L.consCalled(oname(id), cs ? cs.min : 30)); if (cs) S.later.push({ t: now() + cs.min, kind: 'cons', text: did('dmw') && cs.textSent ? cs.textSent : cs.text }); break; }
       case 'ward': S.flags.ward = true; S.flags.picuAt = null; S.later.push({ t: now() + 30, kind: 'sys', text: MS.wardIn, loc: 'WARD' }); msg('sys', MS.wardReq); break;
       case 'o2': S.flags.o2 = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
@@ -325,7 +325,7 @@
     S.res.forEach(r => { if (!r.seen && r.ready <= t) { r.seen = true; r.at = t; resultArrived(r); } });
     if (S.flags.mon && !S.nbp.busy && t >= S.nbp.next) nbpStart();
     Object.entries(S.procs).forEach(([id, end]) => { if (t >= end) { delete S.procs[id]; procDone(id); } });
-    if (S.flags.picuAt && t >= S.flags.picuAt && S.flags.loc !== 'PICU') { S.flags.loc = 'PICU'; msg('sys', L.msgs.picuIn); }
+    if (S.flags.picuAt && t >= S.flags.picuAt && S.flags.loc !== 'PICU' && (!S.flags.picuAsk || (t - S.flags.picuAsk >= 15 && !$('.picuq')))) picuReady();
     events();
     if (m.dead) { msg('nurse', m.vent ? L.msgs.diedVent : L.msgs.died, true); endCase(); }
   }
@@ -383,6 +383,17 @@
     if (C.shiftEnd != null && !S.flags.shiftAsked && t > 0 && clock === C.shiftEnd) handover();
     if (t >= 24 * 60) endCase();
   }
+  function picuReady() {
+    S.flags.picuAsk = now(); renderClock();
+    if (S.bulk) { movePicu(); return; }
+    const MS = L.msgs; msg('nurse', MS.picuReadyQ, true);
+    const md = modal(`<span class="eyebrow">${esc(L.nurseSays)} · ${hhmm(C.startClock + now())}</span><p>${esc(MS.picuReadyQ)}</p><div class="row"><button class="btn primary" data-go>${esc(MS.picuGo)}</button><button class="btn ghost" data-later>${esc(MS.picuLater)}</button></div>`, 'picuq');
+    md.el.onclick = e => {
+      if (e.target.closest('[data-go]')) { md.close(); movePicu(); }
+      else if (e.target.closest('[data-later]')) { md.close(); msg('nurse', MS.picuWait); }
+    };
+  }
+  function movePicu() { if (S.ended) return; S.flags.loc = 'PICU'; S.flags.picuMovedAt = now(); msg('sys', L.msgs.picuIn); renderClock(); }
   function handover() {
     S.flags.shiftAsked = true;
     const sp = S.speed, m = S.m, g = S.res.filter(r => r.ready <= now() && typeof (r.v || {}).pH === 'number').pop(), MS = L.msgs;
@@ -499,7 +510,7 @@
     const c = $('#clk'); if (c) c.textContent = hhmm(C.startClock + now());
     const sn = $('#since'); if (sn) sn.textContent = dur(now());
     $$('[data-sp]').forEach(b => b.classList.toggle('on', +b.dataset.sp === S.speed));
-    const lc = $('#loc'); if (lc) lc.textContent = L.loc[S.flags.loc];
+    const lc = $('#loc'); if (lc) { const lo = S.flags.loc; lc.textContent = (lo === 'PICU' ? L.bedPICU : lo === 'WARD' ? L.loc.WARD : L.bedED) + (lo === 'ED' && S.flags.picuAt ? ' · ' + (S.flags.picuAsk ? L.locReady : L.locWait) : lo === 'ED' && S.flags.ward ? ' · ' + L.locWard : ''); lc.className = 'locp loc-' + lo; }
     const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : S.flags.loc === 'WARD' ? L.loc.WARD : L.bedED;
     const mc = $('#mClk'); if (mc) mc.textContent = hhmm(C.startClock + now());
     renderChips();
@@ -710,6 +721,82 @@
     });
     const first = $('input[name=dv],input[name=rate]', f); if (first) first.focus();
   }
+  /* in the PICU the order screen is the unit's: Hebrew, the drug and its solvent in a table, dose rate and total rate */
+  const PVN = { bolus: ['', 'Infusion Bag', 'IV'], dexBolus: ['Dextrose 10%', 'Infusion Bag', 'IV'], prbc: ['Packed Red Cells', 'Blood Unit', 'IV'], ffp: ['Fresh Frozen Plasma', 'Blood Unit', 'IV'], plt: ['Platelets', 'Blood Unit', 'IV'], albumin: ['Albumin 5%', 'Infusion Bag', 'IV'],
+    insDrip: ['Insulin Regular - Actrapid', 'Injection', 'IV'], insBolus: ['Insulin Regular - Actrapid', 'Injection', 'IV'], scRapid: ['Insulin Aspart - NovoRapid', 'Pen', 'SC'], scBasal: ['Insulin Glargine - Lantus', 'Pen', 'SC'],
+    mannitol: ['Mannitol 20%', 'Infusion Bag', 'IV'], hts: ['Sodium Chloride 3%', 'Infusion Bag', 'IV'], bicarb: ['Sodium Bicarbonate 8.4%', 'Injection', 'IV'], kpo: ['Potassium Chloride oral - Sopa-K', 'Oral Solution', 'PO'],
+    kphos: ['Potassium Phosphate', 'Injection', 'IV'], cagluc: ['Calcium Gluconate 10%', 'Injection', 'IV'], ondan: ['Ondansetron - Zofran', 'Injection', 'IV'], paracet: ['Paracetamol IV', 'Infusion Bag', 'IV'],
+    morphine: ['Morphine', 'Injection', 'IV'], midaz: ['Midazolam - Dormicum', 'Injection', 'IV'], ceftriax: ['Ceftriaxone - Rocephin', 'Injection', 'IV'], main: ['', 'Infusion Bag', 'IV'] };
+  const SOLV = [['NS', 0, 'NaCl 0.9%'], ['NS', 5, 'D5%+NaCl 0.9%'], ['NS', 10, 'D10%+NaCl 0.9%'], ['NS', 12.5, 'D12.5%+NaCl 0.9%'], ['HALF', 0, 'NaCl 0.45%'], ['HALF', 5, 'D5%+NaCl 0.45%'], ['HALF', 10, 'D10%+NaCl 0.45%'], ['LR', 0, 'Ringer Lactate'], ['LR', 5, 'D5%+Ringer Lactate']];
+  function picuForm(id, preset, btn) {
+    const m = S.m, w = dw(), g = LEVEL === 'guided', D = MED[id], N = PVN[id], cont = !!D.cont, BAG = 500, INS = [10, 100];
+    const cur = id === 'main' && m.inf.main.rate ? Object.assign({}, m.inf.main) : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : Object.assign({}, preset);
+    const def = (FORMS[id] || []).reduce((a, [k, , d]) => (a[k] = d, a), {});
+    const unitsOf = () => id === 'insDrip' ? ['units/hr', 'units/kg/hr'] : D.k === 'dose' ? ['units', 'units/kg'] : MU[D.k].map(u => u.replace('ml', 'mL'));
+    let perKg = !!D.kgFirst;
+    const pk0 = cur[D.k] ?? (g ? def[D.k] : ''), doseV = pk0 === '' || pk0 == null ? '' : perKg ? pk0 : +(pk0 * w).toFixed(2);
+    const sel = (n, opts, v) => `<select name="${n}">${opts.map(([val, t]) => `<option value="${val}"${String(v) === String(val) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+    const d = caseDate(now()), lock = '<i class="pv-lk">🔒</i>', dd = '<span class="pv-dd">▾</span>';
+    const solvI = Math.max(0, SOLV.findIndex(x => x[0] === (cur.base || 'NS') && x[1] === (+cur.dex || 0)));
+    let rows, rateRow;
+    if (id === 'main') {
+      rows = `<tr class="on"><td>Potassium Chloride / KCl</td><td class="pv-ic">⚗ ▾ ⏱</td><td><input name="kmeq" type="number" step="any" inputmode="decimal" value="${cur.kcl != null ? Math.round(cur.kcl * BAG / 1000) : ''}"> mEq</td><td id="pvConc">--</td><td>${lock}</td><td class="pv-x">✕</td></tr>
+        <tr><td><span class="pv-sv">ממס</span>${sel('solv', SOLV.map((x, i) => [i, x[2]]), solvI)}</td><td class="pv-ic">⚗ ▾ ⏱</td><td>${BAG} mL</td><td>--</td><td>${lock}</td><td class="pv-x">✕</td></tr>`;
+      rateRow = `<label>קצב מנה ${lock}<input disabled></label><label>קצב כולל ${lock}<span class="pv-in"><input name="rate" type="number" step="any" inputmode="decimal" value="${cur.rate ?? ''}"><em>mL/hr</em></span></label><label>סה״כ כמות ${lock}<input value="mL ${BAG}" disabled></label><label>לתת במשך ${lock}<input disabled></label>`;
+    } else if (id === 'insDrip') {
+      rows = `<tr class="on"><td>${N[0]}</td><td class="pv-ic">⚗ ▾ ⏱</td><td>${INS[0]} units</td><td>${INS[0] / INS[1]} units / mL</td><td>${lock}</td><td class="pv-x">✕</td></tr>
+        <tr><td><span class="pv-sv">ממס</span>NaCl 0.9%</td><td class="pv-ic">⚗ ▾ ⏱</td><td>${INS[1]} mL</td><td>--</td><td>${lock}</td><td class="pv-x">✕</td></tr>`;
+      rateRow = `<label>קצב מנה ${lock}<span class="pv-in"><input name="dv" type="number" step="any" inputmode="decimal" value="${doseV}">${sel('du', unitsOf().map((u, i) => [i, u]), +perKg)}</span></label><label>קצב כולל ${lock}<input id="pvTot" disabled></label><label>סה״כ כמות ${lock}<input value="mL ${INS[1]}" disabled></label><label>לתת במשך ${lock}<input disabled></label>`;
+    } else {
+      const name = id === 'bolus' ? sel('fluid', [['NS', 'NaCl 0.9%'], ['LR', 'Ringer Lactate']], cur.fluid || 'NS') : esc(N[0]);
+      rows = `<tr class="on"><td>${id === 'bolus' ? '<span class="pv-sv">ממס</span>' : ''}${name}</td><td class="pv-ic">⚗ ▾ ⏱</td><td><span class="pv-in"><input name="dv" type="number" step="any" inputmode="decimal" value="${doseV}">${sel('du', unitsOf().map((u, i) => [i, u]), +perKg)}</span></td><td>--</td><td>${lock}</td><td class="pv-x">✕</td></tr>`;
+      rateRow = `<label>קצב מנה ${lock}<input disabled></label><label>קצב כולל ${lock}<input disabled></label><label>סה״כ כמות ${lock}<input id="pvTot" disabled></label><label>לתת במשך ${lock}<span class="pv-in"><input name="over" type="number" step="any" inputmode="decimal" value="${D.over ? cur.over ?? def.over ?? '' : ''}"${D.over ? '' : ' disabled'}><em>min</em></span></label>`;
+    }
+    const md = modal(`<div class="pv" dir="rtl"><div class="pv-title"><span>👤 צור הוראה עבור: <b>ישראלי ישראל, מספר אשפוז ${String(81000000 + (S.date0 / 86400000 | 0) % 999999)}</b></span><button type="button" class="pv-xx" data-x aria-label="${esc(L.back)}">✕</button></div>
+      <div class="pv-ban"><span class="pv-al">לא ידועה רגישות לתרופות</span><span>${m.age}Y</span><span>משקל לתרופות: ${w} Kg</span><span class="pv-tabs"><b>מידע נוסף</b><b>אלרגיות</b></span></div>
+      <form class="pv-body"><div class="pv-top"><section><h5>הוראה למתן</h5><div class="pv-srch"><span class="pv-tag">🏷</span><span class="pv-drug">${id === 'main' ? 'Potassium Chloride / KCl' : esc(N[0] || 'Sodium Chloride 0.9%')}</span>${dd}<span class="pv-sq">🔍</span><span class="pv-sq">📋</span></div>
+          <div class="pv-g3"><label>צורת מינון<span class="pv-f">${N[1]}${dd}</span></label><label>דרך מתן<span class="pv-f">${N[2]}${dd}</span></label><label>מיקום<span class="pv-f">בחר/י מיקום${dd}</span></label></div></section>
+        <section><div class="pv-sos"><b class="pv-sb">SOS</b><span class="pv-f pv-ph">התנאי למתן SOS</span><label>מקסימום מנה ל-24 שעות<span class="pv-f"></span></label></div>
+          <div class="pv-g3"><label>מצב דוגמה<span class="pv-f">ללא</span></label><label>תדירות<span class="pv-f">${cont ? 'מתמשך' : 'פעם אחת'}${dd}</span></label><label>&nbsp;<span class="pv-f"></span></label></div></section></div>
+        <div class="pv-mid"><span class="pv-f pv-mode">${D.over ? 'ציין הזרמה במשך' : 'הגדר/הגדירי מנה וקצב'}${dd}</span><span class="pv-add"><b>＋</b>תוספים</span><span class="pv-add"><b>＋</b>ממס</span></div>
+        <table class="pv-t"><thead><tr><th>תרופה</th><th></th><th>כמות/נפח</th><th>ריכוז</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="pv-rates">${rateRow}</div>
+        <div class="pv-when"><div><label>התחלה<span class="pv-f">עכשיו${dd}</span></label><label>סיים<span class="pv-f">${cont ? 'ללא הגבלת זמן' : 'אחרי מנה אחת'}${dd}</span></label></div><label class="pv-note">ראה מידע נוסף<textarea name="instr" rows="3"></textarea></label></div>
+        <div class="pv-help" id="hlp"></div>
+        <div class="pv-foot"><span class="pv-wt">משקל לחישוב מינון: <span class="pv-f">${S.flags.weighed ? 'משקל בפועל' : 'משקל ראשוני'}${dd}</span> ${w} Kg</span><span>החל מ ${hhmm(C.startClock + now())} ${d.D}</span></div>
+        <div class="pv-btns"><button type="button" class="pv-b" data-x>ביטול</button><button type="submit" class="pv-b">שמור</button><button type="button" class="pv-b ghost" disabled>שמור וצור חדש</button></div></form></div>`, 'pvw');
+    const f = $('form', md.el), h = $('#hlp', md.el);
+    const total = () => f.dv && f.dv.value !== '' ? (perKg ? +f.dv.value * w : +f.dv.value) : null;
+    const live = () => {
+      h.classList.remove('warn'); let t = '';
+      if (id === 'main') { const k = f.kmeq.value === '' ? 0 : +f.kmeq.value; $('#pvConc', md.el).textContent = k ? `${+(k / BAG).toFixed(3)} mEq / mL` : '--'; t = `KCl ${Math.round(k * 1000 / BAG)} mEq/L`; if (g) t += ' · ' + (S.flags.weighed ? '' : L.help.byHist) + L.help.maint(Math.round(M.maint(w)), 0, Math.round(1.5 * M.maint(w)), Math.round(2 * M.maint(w))); }
+      else if (total() != null) {
+        const u = unitsOf(), tv = total();
+        t = perKg ? `= ${+tv.toFixed(2)} ${u[0]}` : `= ${+(tv / w).toFixed(3)} ${u[1]}`;
+        if (id === 'insDrip') { $('#pvTot', md.el).value = `${+(tv * INS[1] / INS[0]).toFixed(1)} mL/hr`; if (g) t += ' · ' + L.help.insProt; }
+        else { const tot = $('#pvTot', md.el); if (tot) tot.value = `${+tv.toFixed(2)} ${u[0]}`; }
+        if (g && id === 'mannitol') t += ' · ' + L.help.man(Math.round(tv * 5));
+      }
+      h.textContent = t;
+    };
+    f.addEventListener('input', live); live();
+    f.addEventListener('change', e => { if (e.target.name === 'du') { const tv = perKg ? +f.dv.value * w : +f.dv.value, had = f.dv.value !== ''; perKg = e.target.value === '1'; if (had) f.dv.value = perKg ? +(tv / w).toFixed(3) : +tv.toFixed(2); live(); } });
+    md.el.addEventListener('click', e => { if (e.target.closest('[data-x]')) md.close(); });
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const p = {}, need = () => { h.textContent = L.needVal; h.classList.add('warn'); };
+      if (id === 'main') { if (f.rate.value === '') return need(); const sv = SOLV[+f.solv.value]; Object.assign(p, { base: sv[0], dex: sv[1], kcl: Math.round((+f.kmeq.value || 0) * 1000 / BAG), rate: +f.rate.value }); }
+      else {
+        const tv = total(); if (tv == null || (D.over && f.over.value === '')) return need();
+        p[D.k] = +(tv / w).toFixed(3);
+        if (D.over) p.over = +f.over.value;
+        if (id === 'bolus') p.fluid = f.fluid.value;
+      }
+      if (f.instr.value.trim()) p.instr = f.instr.value.trim();
+      md.close(); order(id, p); flash(btn);
+    });
+    const first = $('input[name=dv],input[name=kmeq]', f); if (first) first.focus();
+  }
   function openForm(id, btn) {
     const m = S.m, w = S.flags.weighed ? m.wt : m.wt0, g = LEVEL === 'guided';
     if (id === 'insulinVial') {
@@ -720,7 +807,7 @@
     if (id === 'kclConc') { msg('sys', EXTRA[LANG].kclWhere); openForm('main'); return; }
     let preset = {};
     if (id === 'bolusNS' || id === 'bolusLR') { preset.fluid = id === 'bolusNS' ? 'NS' : 'LR'; id = 'bolus'; }
-    if (MED[id]) { medForm(id, preset, btn); return; }
+    if (MED[id]) { (S.flags.loc === 'PICU' ? picuForm : medForm)(id, preset, btn); return; }
     const fields = FORMS[id];
     if (!fields && PROC[id] && id !== 'iv') {
       const PR = PROC[id], cm = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname(id))}</h2><p class="muted">${esc(L.procInfo(PR.by === 'md', PR.min))}</p><div class="row"><button class="btn primary" data-ok>${esc(L.order)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
