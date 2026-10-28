@@ -218,7 +218,7 @@
       case 'att': S.att.push(now()); msg('att', m.ce > 0.25 ? MS.attCE : p.ins ? MS.attIns : MS.attGen); break;
       case 'picu': S.flags.picu = true; S.flags.picuAt = now() + 30; msg('sys', MS.picuReq); renderClock(); break;
       case 'endo': case 'surg': { S.flags[id] = true; const cs = (CT().consult || {})[id]; msg('sys', L.consCalled(oname(id), cs ? cs.min : 30)); if (cs) S.later.push({ t: now() + cs.min, kind: 'cons', text: did('dmw') && cs.textSent ? cs.textSent : cs.text }); break; }
-      case 'ward': S.flags.ward = true; S.flags.picuAt = null; S.later.push({ t: now() + 30, kind: 'sys', text: MS.wardIn, loc: 'WARD' }); msg('sys', MS.wardReq); break;
+      case 'ward': S.flags.ward = true; S.flags.picuAt = null; S.flags.wardAt = now() + 30; msg('sys', MS.wardReq); renderClock(); break;
       case 'o2': S.flags.o2 = true; msg('nurse', oname(id) + (p.mode ? ` (${EXTRA[LANG].modes[p.mode]})` : '') + ' ✓'); break;
       case 'ct': if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) S.log[S.log.length - 1].early = true; msg('nurse', L.imgOrdered(oname('ct'))); addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
       case 'cxr': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'טכניקה: צילום חזה AP בשכיבה.\nממצאים: שדות ריאה נקיים, ללא תסנינים, ללא נוזל פלאורלי וללא חזה אוויר. צל לב ומצר בגודל תקין.\nסיכום: צילום חזה תקין.' : 'Technique: supine AP chest radiograph.\nFindings: clear lung fields; no consolidation, effusion or pneumothorax. Normal cardiomediastinal silhouette.\nImpression: normal chest radiograph.' }); break;
@@ -325,7 +325,7 @@
     S.res.forEach(r => { if (!r.seen && r.ready <= t) { r.seen = true; r.at = t; resultArrived(r); } });
     if (S.flags.mon && !S.nbp.busy && t >= S.nbp.next) nbpStart();
     Object.entries(S.procs).forEach(([id, end]) => { if (t >= end) { delete S.procs[id]; procDone(id); } });
-    if (S.flags.picuAt && t >= S.flags.picuAt && S.flags.loc !== 'PICU' && (!S.flags.picuAsk || (t - S.flags.picuAsk >= 15 && !$('.picuq')))) picuReady();
+    [['PICU', 'picu'], ['WARD', 'ward']].forEach(([to, k]) => { if (S.flags[k + 'At'] != null && t >= S.flags[k + 'At'] && S.flags.loc !== to && !$('.bedq') && (!S.flags[k + 'Ask'] || t - S.flags[k + 'Ask'] >= 15)) bedReady(to); });
     events();
     if (m.dead) { msg('nurse', m.vent ? L.msgs.diedVent : L.msgs.died, true); endCase(); }
   }
@@ -383,17 +383,18 @@
     if (C.shiftEnd != null && !S.flags.shiftAsked && t > 0 && clock === C.shiftEnd) handover();
     if (t >= 24 * 60) endCase();
   }
-  function picuReady() {
-    S.flags.picuAsk = now(); renderClock();
-    if (S.bulk) { movePicu(); return; }
-    const MS = L.msgs; msg('nurse', MS.picuReadyQ, true);
-    const md = modal(`<span class="eyebrow">${esc(L.nurseSays)} · ${hhmm(C.startClock + now())}</span><p>${esc(MS.picuReadyQ)}</p><div class="row"><button class="btn primary" data-go>${esc(MS.picuGo)}</button><button class="btn ghost" data-later>${esc(MS.picuLater)}</button></div>`, 'picuq');
+  /* a bed being ready is not the move: the nurse asks first, and asks again in 15 min if you wait */
+  function bedReady(to) {
+    const k = to === 'PICU' ? 'picu' : 'ward', MS = L.msgs; S.flags[k + 'Ask'] = now(); renderClock();
+    if (S.bulk) { moveTo(to); return; }
+    msg('nurse', MS[k + 'ReadyQ'], true);
+    const md = modal(`<span class="eyebrow">${esc(L.nurseSays)} · ${hhmm(C.startClock + now())}</span><p>${esc(MS[k + 'ReadyQ'])}</p><div class="row"><button class="btn primary" data-go>${esc(MS[k + 'Go'])}</button><button class="btn ghost" data-later>${esc(MS.picuLater)}</button></div>`, 'bedq');
     md.el.onclick = e => {
-      if (e.target.closest('[data-go]')) { md.close(); movePicu(); }
+      if (e.target.closest('[data-go]')) { md.close(); moveTo(to); }
       else if (e.target.closest('[data-later]')) { md.close(); msg('nurse', MS.picuWait); }
     };
   }
-  function movePicu() { if (S.ended) return; S.flags.loc = 'PICU'; S.flags.picuMovedAt = now(); msg('sys', L.msgs.picuIn); renderClock(); }
+  function moveTo(to) { if (S.ended) return; S.flags.loc = to; S.flags[to === 'PICU' ? 'picuMovedAt' : 'wardMovedAt'] = now(); msg('sys', to === 'PICU' ? L.msgs.picuIn : L.msgs.wardIn); renderClock(); }
   function handover() {
     S.flags.shiftAsked = true;
     const sp = S.speed, m = S.m, g = S.res.filter(r => r.ready <= now() && typeof (r.v || {}).pH === 'number').pop(), MS = L.msgs;
@@ -510,7 +511,7 @@
     const c = $('#clk'); if (c) c.textContent = hhmm(C.startClock + now());
     const sn = $('#since'); if (sn) sn.textContent = dur(now());
     $$('[data-sp]').forEach(b => b.classList.toggle('on', +b.dataset.sp === S.speed));
-    const lc = $('#loc'); if (lc) { const lo = S.flags.loc; lc.textContent = (lo === 'PICU' ? L.bedPICU : lo === 'WARD' ? L.loc.WARD : L.bedED) + (lo === 'ED' && S.flags.picuAt ? ' · ' + (S.flags.picuAsk ? L.locReady : L.locWait) : lo === 'ED' && S.flags.ward ? ' · ' + L.locWard : ''); lc.className = 'locp loc-' + lo; }
+    const lc = $('#loc'); if (lc) { const lo = S.flags.loc; lc.textContent = (lo === 'PICU' ? L.bedPICU : lo === 'WARD' ? L.loc.WARD : L.bedED) + (lo !== 'WARD' && S.flags.wardAt != null ? ' · ' + (S.flags.wardAsk ? L.locWardReady : L.locWard) : lo === 'ED' && S.flags.picuAt ? ' · ' + (S.flags.picuAsk ? L.locReady : L.locWait) : ''); lc.className = 'locp loc-' + lo; }
     const mb = $('#mbed'); if (mb) mb.textContent = S.flags.loc === 'PICU' ? L.bedPICU : S.flags.loc === 'WARD' ? L.loc.WARD : L.bedED;
     const mc = $('#mClk'); if (mc) mc.textContent = hhmm(C.startClock + now());
     renderChips();
