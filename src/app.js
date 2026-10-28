@@ -255,7 +255,8 @@
       : id === 'bolus' && (p.mlkg > 10 || p.over < 30) ? 'bolusFast'
       : id === 'ct' && m.ce < 0.2 && S.ceSignAt == null && m.GCS >= 14 ? 'ctNoSigns'
       : id === 'ct' && m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120) ? 'ctEarly'
-      : id === 'main' && +p.rate > mt2 && now() > 30 ? 'fluidsHigh'
+      : id === 'main' && +p.rate > mt2 ? 'fluidsHigh'
+      : id === 'insDrip' && !m.inf.insulin && !did('insDrip') && (() => { const f0 = S.log.find(e => e.id === 'bolus' || e.id === 'main'); return !f0 || now() - f0.t < 50; })() ? 'insEarly'
       : id === 'bolus' && m.inf.boluses.some(b => b.left > 1) ? 'bolusRunning'
       : (id === 'insDrip' && !m.inf.insulin || id === 'insBolus' || id === 'main' && +p.kcl > 0 && !m.inf.main.kcl) && !kKnown && !p.okK ? 'noK'
       : id === 'insDrip' && +p.dose > 0.1001 ? 'insHigh'
@@ -265,7 +266,7 @@
       : LABS.includes(id) && !p.freq && !['poc', 'bhb', 'vbg', 'abg', 'ecg'].includes(id) && S.res.some(r => r.kind === id && now() - r.drawn < 60) ? 'dupLab'
       : LEVEL === 'guided' && (id === 'insBolus' || id === 'bicarb') ? id : null;
     const lastLab = S.res.filter(r => r.kind === id).pop();
-    const dynText = { ctEarly: L.msgs.ctEarly, noK: L.msgs.noK, ins01: L.msgs.ins01(p.dose), fluidsHigh: L.msgs.fluidsHigh(Math.round(mt2 / 1.1)), scQuery: L.msgs.scQuery(m.vent ? L.msgs.why.vent : m.GCS < 14 ? L.msgs.why.drowsy : m.G < 120 ? L.msgs.why.lowG(Math.round(m.G)) + ' ' + L.msgs.why.lowGHint : vomited ? L.msgs.why.vomit : L.msgs.why.acid), bolusRunning: L.msgs.bolusRunning, insHigh: L.msgs.insHigh(p.dose), basalTime: L.msgs.basalTime, ioNoNeed: L.msgs.ioNoNeed, alineED: L.msgs.alineED, wardK: L.msgs.wardObj(wardWhy.join('; ')), dupLab: lastLab && L.msgs.dupLab(oname(id), Math.round(now() - lastLab.drawn)) }[dyn];
+    const dynText = { ctEarly: L.msgs.ctEarly, noK: L.msgs.noK, ins01: L.msgs.ins01(p.dose), fluidsHigh: L.msgs.fluidsHigh(Math.round(mt2 / 1.1)), scQuery: L.msgs.scQuery(m.vent ? L.msgs.why.vent : m.GCS < 14 ? L.msgs.why.drowsy : m.G < 120 ? L.msgs.why.lowG(Math.round(m.G)) + ' ' + L.msgs.why.lowGHint : vomited ? L.msgs.why.vomit : L.msgs.why.acid), bolusRunning: L.msgs.bolusRunning, insEarly: L.msgs.insEarly, insHigh: L.msgs.insHigh(p.dose), basalTime: L.msgs.basalTime, ioNoNeed: L.msgs.ioNoNeed, alineED: L.msgs.alineED, wardK: L.msgs.wardObj(wardWhy.join('; ')), dupLab: lastLab && L.msgs.dupLab(oname(id), Math.round(now() - lastLab.drawn)) }[dyn];
     if (dyn && dynText && !p.force) return objection(id, dyn === 'noK' ? Object.assign({}, p, { okK: true }) : p, dynText, ['noK', 'ins01', 'scQuery', 'dupLab', 'bolusRunning', 'basalTime'].includes(dyn) ? 'nurse' : 'att', dyn === 'noK', dyn);
     if (dyn && W[dyn] && !p.force) return objection(id, p, W[dyn]);
     if (wk && W[wk] && !p.force) {
@@ -294,7 +295,7 @@
       case 'historyQ': msg('sys', `${L.history}: ${CT().history}`); break;
       case 'ventSet': m.ventSet = { tv: +p.tv, rr: +p.rr, peep: +p.peep, fio2: +p.fio2 }; msg('nurse', L.msgs.ventSet(ventTxt(m.ventSet))); break;
       case 'parents': parentTalk(); break;
-      case 'examQ': msg('sys', `${L.exam}: ${now() < 20 ? CT().exam : (m.vent ? L.examVent(Math.min(m.GCS, 3), L.pupilsV[m.pupils], m.CRT) : L.examNow(Object.assign({}, m, { pupilsTxt: L.pupilsV[m.pupils], kuss: m.pCO2 < 26 && !m.vent, headache: m.headache && m.GCS >= 13, dry: m.defPct > 5, abd: m.pH < 7.2 })))}`.replace(/\s{2,}/g, ' ')); break;
+      case 'examQ': msg('sys', `${L.exam}: ${now() < 20 ? CT().exam : (m.vent ? L.examVent(Math.min(m.GCS, 3), L.pupilsV[m.pupils], m.CRT) : L.examNow(Object.assign({}, m, { pupilsTxt: L.pupilsV[m.pupils], kuss: (m.pH < 7.28 || m.pCO2 < 28) && !m.vent, headache: m.headache && m.GCS >= 13, dry: m.defPct > 5, abd: m.pH < 7.2 })))}`.replace(/\s{2,}/g, ' ')); break;
       case 'weigh': S.flags.weighed = true; msg('nurse', MS.weighed(m.wt)); break;
       case 'monitor': S.flags.mon = true; msg('nurse', MS.monOn); break;
       case 'npo': S.flags.npo = true; msg('nurse', MS.npo); break;
@@ -473,7 +474,7 @@
       if (m.K < 2.5) once('kVeryLow' + Math.floor(t / 60), true, () => msg('nurse', MS.kVeryLow, true));
     }
     if (m.G < 70) once('hypo' + Math.floor(t / (m.G < 60 ? 15 : 30)), true, () => msg('nurse', (m.vent || m.GCS < 9 ? MS.hypoComa : m.G >= 55 && m.GCS >= 15 ? MS.hypoMild : MS.hypo)(Math.round(m.G)) + (LEVEL === 'guided' && m.G < 60 ? ' ' + MS.hHypo : ''), true));
-    if (m.G < 40) { S.lowGMin = (S.lowGMin || 0) + 1; if (S.lowGMin >= 15) once('hypoAtt', true, () => msg('att', MS.attHypo, true)); } else S.lowGMin = 0;
+    if (m.G < 60) { S.lowGMin = (S.lowGMin || 0) + 1; if (S.lowGMin >= (m.inf.insulin > 0 ? 10 : 15)) once('hypoAtt', true, () => msg('att', MS.attHypo, true)); } else S.lowGMin = 0;
     if (m.G < 40 && !m.vent && t - (S.lastSz ?? -99) >= 30) { S.lastSz = t; msg('nurse', MS.seizure(Math.round(m.G)), true); }
     /* while the brain is swelling: new calls on a further HR fall or a GCS drop, and every 30 min if it is left untreated */
     if (S.ceCritAt != null && m.ce > 0.3) {
@@ -587,7 +588,7 @@
         <div class="cart" id="cart">${cartHTML()}</div>
         <details class="recorder" open><summary><span>${esc(L.flowT)}</span><span id="flowN"></span></summary><div class="flow" id="flow"></div></details>
         <details class="recorder" open><summary><span>${esc(L.txT)}</span><span id="txN"></span></summary><ol id="txL"></ol></details>
-        <details class="recorder"><summary><span>${esc(L.logT)}</span><span id="logN"></span></summary><ol id="recL"></ol></details>
+        <details class="recorder" open><summary><span>${esc(L.logT)}</span><span id="logN"></span></summary><ol id="recL"></ol></details>
       </section>
     </div></div>`;
     MON = new UI.Monitor($('#cv'), { sweep: 3.5, full: true, onBeat: k => { if (S && S.flags.mon && S.speed && k === 'pleth') UI.Sound.pulseTone(S.m.SpO2); } });
@@ -794,7 +795,7 @@
           ${D.over ? `<div class="mo-dose"><span>Infuse over:</span><input name="over" type="number" step="any" inputmode="decimal" value="${cur.over ?? def.over ?? ''}"><span class="mo-u">min</span></div>` : ''}</div>`;
     const curOrders = [m.inf.main.rate && `inf ${{ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' }[m.inf.main.base]}${m.inf.main.dex ? '+DEXTROSE ' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCL ' + m.inf.main.kcl + ' mEq/L' : ''} Rate: ${m.inf.main.rate}ml/hr CONTINUOUS`,
       m.inf.insulin && `inf INSULIN REGULAR ${m.inf.insulin} units/kg/h (${r1(m.inf.insulin * w)} units/h) CONTINUOUS`,
-      ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`), ...Object.entries(S.standing).map(([k, o]) => oname(k).includes(L.every(o.every / 60)) ? oname(k) : `${oname(k)} · ${o.every < 60 ? o.every + ' ' + L.min : L.every(o.every / 60)}`)].filter(Boolean);
+      ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`), ...(S.pendIV || []).map(([k]) => `${oname(k)} · ${L.msgs.waitIV}`), ...Object.entries(S.standing).map(([k, o]) => oname(k).includes(L.every(o.every / 60)) ? oname(k) : `${oname(k)} · ${o.every < 60 ? o.every + ' ' + L.min : L.every(o.every / 60)}`)].filter(Boolean);
     const nb = S.nbp && S.nbp.v, mon = !!S.flags.mon, lv = !mon && S.lastVit, at = `${hhmm(C.startClock + (mon ? Math.floor(now() / 15) * 15 : lv ? lv.t : 0))}:00 ${(mon ? date : caseDate(lv ? lv.t : 0)).D}`;
     const meas = [[m.temp.toFixed(1), he ? 'חום' : 'Temp'], [mon ? m.HR : lv ? lv.hr : m.hist[0] ? m.hist[0].HR : m.HR, he ? 'דופק' : 'Pulse'], [nb ? `${nb.s} / ${nb.d}` : mon ? `${m.SBP} / ${m.DBP}` : lv ? `${lv.s} / ${lv.d}` : '—', he ? 'לחץ דם' : 'BP'], [mon ? m.SpO2 : lv ? lv.sp : '—', he ? 'סטורציה באויר חדר' : 'SpO₂ room air'], [m.GCS < 9 || m.vent ? '—' : !mon ? 4 : m.pH < 7.2 ? 4 : m.pH < 7.3 ? 2 : 0, he ? 'כאב' : 'Pain']];
     const wtTxt = S.flags.weighed ? m.wt : m.wt0;
