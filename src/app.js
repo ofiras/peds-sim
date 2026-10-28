@@ -1321,7 +1321,7 @@
     S.ended = true; S.speed = 0; stopLoop(); $$('.scrim,.redeb').forEach(x => x.remove());
     const { R, pct } = rubric(), SRC = C.src, TLE = tlEvents(); S.tlTx = TLE.filter(e => e.cat === 'tx');
     const prev = histGet().filter(x => x.c === C.id), prevBest = prev.length ? Math.max(...prev.map(x => x.pct)) : null;
-    if (!S.saved) { S.saved = { n: prev.length + 1, best: prevBest, G: award(R, pct, prev.length ? prev[prev.length - 1].pct : null) }; ls('psim-hist', JSON.stringify(prev.concat({ c: C.id, d: Date.now(), pct, lv: LEVEL, o: S.m.dead ? 'd' : S.m.injury > 0 ? 'i' : 'ok', t: S.m.t, ho: S.handover != null }).concat(histGet().filter(x => x.c !== C.id)).slice(-80))); }
+    if (!S.saved) { S.saved = { n: prev.length + 1, best: prevBest, G: award(R, pct, prev.length ? prev[prev.length - 1].pct : null) }; ls('psim-hist', JSON.stringify(prev.concat({ c: C.id, d: Date.now(), pct, lv: LEVEL, o: S.m.dead ? 'd' : critEnd() ? 'c' : S.m.injury > 0 ? 'i' : 'ok', t: S.m.t, ho: S.handover != null }).concat(histGet().filter(x => x.c !== C.id)).slice(-80))); }
     const PN = C.notes || {};
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
       <div class="score"><b>${pct}%</b><span>${esc(S.m.dead ? L.outDied : critEnd() ? L.outCrit : S.m.injury > 0 ? L.outInjury : L.outOk)}${S.handover != null ? ' · ' + esc(L.msgs.hoDone) : ''} · \u2066+${esc(dur(S.m.t))}\u2069</span><small class="hline">${esc(L.hist.line(S.saved.n, S.saved.best))}</small></div>
