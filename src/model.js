@@ -56,8 +56,9 @@
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
     s.HR = Math.round(88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
-    s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH));
-    s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
+    const wob = 3 * Math.sin(s.t / 37) + 2 * Math.sin(s.t / 11);   // ordinary beat-to-beat and hour-to-hour drift
+    s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH) + wob);
+    s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS + wob * 0.6);
     s.RR = s.vent ? (vs ? vs.rr : 22) : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
     s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99);
     s.CRT = Math.round((2 + Math.max(0, defPct - 6) * 0.45) * 2) / 2;
@@ -67,10 +68,11 @@
     if (s.pH < 7.1) g--;
     if (s.eOsm > 330) g--;
     if (s.G < 50) g -= 2; if (s.G < 35) g -= 4;
-    g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0);
+    g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0) + (s.ce > 0.08 && s.ce <= 0.2 ? 1 : 0);
     s.GCS = clamp(g, 3, 15);
+    if (s.vent) s.GCS = Math.min(s.GCS, 7);
     s.pupils = s.ce > 0.7 ? 'unequal' : s.ce > 0.5 ? 'sluggish' : 'normal';
-    s.headache = s.ce > 0.1;
+    s.headache = s.ce > 0.07;
     s.vomit = s.ce > 0.2;
   }
 
@@ -103,7 +105,8 @@
     const uo = (s.G > 180 ? 1 + Math.min(2.2, (s.G - 180) / 150) : 1.0) * w * s.perf + (s.manUntil > s.t ? 2 * w : 0);   // mL/h
     const insens = s.maint * 0.3 * (s.RR > 28 ? 1.2 : 1);                                                                // mL/h
     const out = (uo + insens) * h;
-    s.io.inTotal += vol; s.io.out += uo * h; s.io.hourIn += vol; s.io.hourOut += uo * h; s.uo = uo;
+    const insV = inf.insulin * w * 10 * h;   // the insulin line (10 units in 100 mL) is charted as intake; too small to matter for the salts
+    s.io.inTotal += vol + insV; s.io.out += uo * h; s.io.hourIn += vol + insV; s.io.hourOut += uo * h; s.uo = uo;
     /* sodium and water (corrected sodium, total body water) */
     /* corrected sodium drifts toward a level set by the main fluid (0.9% saline: rises slowly to ~143; 0.45%: falls),
        plus free-water loss while the osmotic diuresis lasts; 3% saline is added at the dose */
