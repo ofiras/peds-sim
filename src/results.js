@@ -93,6 +93,7 @@
   const OSM = v => v.Na != null && v.G != null && v.BUN != null ? 2 * v.Na + v.G / 18 + v.BUN / 2.8 : null;
   /* rows: [label, unit, lo, hi, dp, panicLo, panicHi, value(v), kinds (default: the section's)] */
   const CH = ['chem'], k = key => v => v[key];
+  const RBC = v => v.HCT != null && v.MCV ? v.HCT * 10 / v.MCV : null;
   const CUM = [
     { he: 'ביוכימיה בדם', en: 'Blood chemistry', kinds: ['chem', 'lft', 'lipase', 'cbc', 'dmw', 'bhb'], rows: [
       ['Sodium-B', 'mmol/L', 135, 145, 0, 125, 155, k('Na'), CH], ['Potassium-B', 'mmol/L', 3.5, 5.1, 1, 3.0, 6.0, k('K'), CH],
@@ -114,8 +115,10 @@
       ['Chloride-WB', 'mmol/L', 98, 107, 0, null, null, k('Cl')], ['Glucose-WB', 'mg/dL', 70, 110, 0, 50, 500, k('G')], ['Lactate-WB', 'mmol/L', 0.5, 2.2, 1, null, 4, k('lact')]
     ] },
     { he: 'המטולוגיה', en: 'Hematology', kinds: ['cbc'], rows: [
-      ['WBC', '10^3/µL', 4.5, 13.5, 1, 1, 30, k('WBC')], ['Neutrophils %', '%', 40, 75, 0, null, null, k('NEU')], ['HGB', 'g/dL', 11.5, 15.5, 1, 7, 20, k('HGB')],
-      ['HCT', '%', 35, 45, 0, null, null, k('HCT')], ['MCV', 'fL', 77, 95, 0, null, null, k('MCV')], ['PLT', '10^3/µL', 150, 450, 0, 50, 1000, k('PLT')]
+      ['WBC', '10e3/µl', 4.5, 13.5, 1, 1, 30, k('WBC')], ['RBC', '10e6/µl', 4.0, 5.2, 1, null, null, RBC], ['HGB', 'g/dL', 11.5, 15.5, 1, 7, 20, k('HGB')],
+      ['HCT', '%', 35, 45, 1, null, null, k('HCT')], ['MCV', 'fL', 77, 95, 1, null, null, k('MCV')], ['MCH', 'pg', 25, 33, 1, null, null, v => RBC(v) ? v.HGB * 10 / RBC(v) : null],
+      ['MCHC', 'g/dL', 31, 37, 1, null, null, v => v.HGB != null && v.HCT ? v.HGB * 100 / v.HCT : null], ['PLT', '10e3/µl', 150, 450, 0, 50, 1000, k('PLT')],
+      ['NEU abs.', '10e3/µl', 1.5, 8.5, 1, 0.5, null, v => v.WBC != null && v.NEU != null ? v.WBC * v.NEU / 100 : null], ['NEU%', '%', 40, 75, 1, null, null, k('NEU')]
     ] },
     { he: 'קרישה', en: 'Coagulation', kinds: ['coag'], rows: [
       ['PT', 'sec', 11, 14, 1, null, null, k('PT')], ['INR', '', 0.8, 1.2, 2, null, 4, k('INR')], ['PTT', 'sec', 25, 36, 1, null, 100, k('PTT')], ['Fibrinogen', 'mg/dL', 200, 400, 0, 100, null, k('FIB')]
@@ -145,34 +148,45 @@
     const keep = cols.map((c, i) => secs.some(x => x.rows.some(r => r.vals[i] != null)) || txt.some(t => t.cells[i]));
     return { secs, txt, keep };
   }
+  /* the newer results dialog: legend pills, title, "summary table" radio, filter row, blue header bar, sections as
+     blue headings; each sample column is tag · value · arrow; unfilled columns keep the blue bar going */
+  const TAG = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M1 1h4.6l5.4 5.4-4.6 4.6L1 5.6z" fill="#111"/><circle cx="3.6" cy="3.6" r="1" fill="#fff"/></svg>';
   function cumulative(cols0, ctx) {
     const he = ctx.he, G = grid(cols0, ctx), cols = cols0.filter((c, i) => G.keep[i]), K = v => v.filter((x, i) => G.keep[i]);
+    const fill = Math.max(0, 6 - cols.length), pend = he ? 'בעבודה' : 'Pending';
+    const td = (c, hl, x = '') => `<td class="${c}${hl ? ' hl' : ''}">${x}</td>`;
     const cell = (x0, R, hl) => {
       const lo = R[2], hi = R[3], dp = R[4], pl = R[5], ph = R[6], x = +(+x0).toFixed(dp);
       const f = pl != null && x < pl ? 'PL' : ph != null && x > ph ? 'PH' : x < lo ? 'L' : x > hi ? 'H' : '';
-      const cls = (hl ? 'hl ' : '') + (f ? (f[0] === 'P' ? 'cpan' : 'cabn') : '');
-      return `<td class="${cls}"><span>${fx(x, dp)}</span>${f ? `<i>${f.endsWith('L') ? '↓' : '↑'}</i>` : ''}</td>`;
+      return td('tg', hl, TAG) + td('v' + (f ? (f[0] === 'P' ? ' cpan' : ' cabn') : ''), hl, `<span>${fx(x, dp)}</span>`) + td('ar', hl, f ? `<i>${f.endsWith('L') ? '🡓' : '🡑'}</i>` : '');
     };
-    const span = 3 + cols.length;
+    const empty = hl => td('tg', hl) + td('v', hl) + td('ar', hl), pendC = hl => td('tg', hl) + td('v pend', hl, pend) + td('ar', hl);
+    const pad = '<td class="fl"></td>'.repeat(fill), span = 3 + cols.length * 3 + fill;
     let body = '';
     G.secs.forEach(({ sec, rows }) => {
       body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${esc(he ? sec.he : sec.en)}</span></td></tr>`;
       rows.forEach(({ R, vals, id }) => {
-        body += `<tr><td class="tn"><button class="ch-tn" data-tr="${id}">${esc(R[0])}</button></td><td class="u">${esc(R[1])}</td><td class="rg">${R[2]}-${R[3]}</td>${K(vals).map((x, i) => x == null ? `<td class="${cols[i].hl ? 'hl' : ''}"></td>` : x === '…' ? `<td class="pend${cols[i].hl ? ' hl' : ''}">…</td>` : cell(x, R, cols[i].hl)).join('')}</tr>`;
+        body += `<tr class="ln"><td class="tn"><button class="ch-tn" data-tr="${id}">${esc(R[0])}</button></td><td class="u">${esc(R[1])}</td><td class="rg">${R[2]}-${R[3]}</td>${K(vals).map((x, i) => x == null ? empty(cols[i].hl) : x === '…' ? pendC(cols[i].hl) : cell(x, R, cols[i].hl)).join('')}${pad}</tr>`;
       });
     });
     if (G.txt.length) {
       body += `<tr class="ch-sec"><td colspan="${span}"><span dir="rtl">${he ? 'שתן, מיקרוביולוגיה, בנק דם ודימות' : 'Urine, microbiology, blood bank, imaging'}</span></td></tr>`;
       G.txt.forEach(({ kd, cells }) => {
-        body += `<tr><td class="tn" colspan="3"><span class="ch-tx" dir="auto">${esc(ctx.name(kd))}</span></td>${K(cells).map((r, i) => `<td class="${cols[i].hl ? 'hl' : ''}">${!r ? '' : r.pend ? '<span class="pend">…</span>' : `<button class="ch-doc" data-ri="${r.ix}" title="${esc(ctx.name(kd))}">📄</button>`}</td>`).join('')}</tr>`;
+        body += `<tr class="ln"><td class="tn" colspan="3"><span class="ch-tx" dir="auto">${esc(ctx.name(kd))}</span></td>${K(cells).map((r, i) => !r ? empty(cols[i].hl) : r.pend ? pendC(cols[i].hl) : td('tg', cols[i].hl, TAG) + td('v', cols[i].hl, `<button class="ch-doc" data-ri="${r.ix}" title="${esc(ctx.name(kd))}">📄</button>`) + td('ar', cols[i].hl)).join('')}${pad}</tr>`;
       });
     }
-    const head = `<tr><th class="tn">${he ? 'בדיקות' : 'Tests'}</th><th class="u">${he ? 'יחידות' : 'Units'}</th><th class="rg">${he ? 'ערכי ייחוס' : 'Reference'}</th>${cols.map(c => `<th class="${c.hl ? 'hl' : ''}">${c.d}<br>${c.h}</th>`).join('')}</tr>`;
+    const head = `<tr><th class="tn">${he ? 'בדיקות' : 'Tests'}</th><th class="rf" colspan="2">${he ? 'ערכי ייחוס' : 'Reference'}</th>${cols.map(c => `<th colspan="3" class="dt${c.hl ? ' hl' : ''}">${c.d}<br>${c.h}</th>`).join('')}${'<th class="fl"></th>'.repeat(fill)}</tr>`;
     const legend = ['L', 'H', 'VL', 'VH', 'PL', 'PH'].map(x => `<b class="lg-${x}">${x}</b>`).join('');
-    const opts = [[-1, he ? '-כל המדבקות-' : '-All sections-']].concat(CUM.map((c, i) => [i, he ? c.he : c.en]), [[CUM.length, he ? 'שתן, מיקרו, דימות' : 'Urine, micro, imaging']]);
-    return `<div class="cham" dir="ltr"><div class="ch-title"><i>e</i><span dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</span> -- Webpage Dialog</div>
-      <div class="ch-bar"><div class="ch-legend">${legend}</div><span class="ch-pt" dir="rtl">${esc(ctx.pt)}</span><select class="ch-sel" data-chf dir="rtl" aria-label="${he ? 'סינון' : 'Filter'}">${opts.map(([v, t]) => `<option value="${v}"${(ctx.filter ?? -1) === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
-      <div class="ch-ser" dir="rtl">${he ? 'סידרה 1 מתוך 1' : 'Series 1 of 1'}</div>
+    const opts = [[-1, he ? 'כל הסיווגים' : 'All categories']].concat(CUM.map((c, i) => [i, he ? c.he : c.en]), [[CUM.length, he ? 'שתן, מיקרו, דימות' : 'Urine, micro, imaging']]);
+    return `<div class="cham" dir="ltr"><div class="ch-title"><i>e</i><span>Webpage Dialog -- <span dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</span></span></div>
+      <div class="ch-top"><div class="ch-legend">${legend}</div>
+        <div class="ch-h"><h3 dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</h3><div class="ch-pt" dir="rtl">${esc(ctx.pt)}</div>
+          <div class="ch-radio" dir="rtl"><label><span class="rb on"></span><b>${he ? 'טבלה מרכזת' : 'Summary table'}</b></label><label><span class="rb"></span>${he ? 'הצגה רגילה' : 'Standard view'}</label></div></div>
+        <div class="ch-ic" aria-hidden="true"><span>▥</span><span>⎙</span></div></div>
+      <div class="ch-filt" dir="rtl"><button class="ch-go" type="button">${he ? 'בצע' : 'Go'}</button><label>${he ? 'החל מ' : 'From'} <input class="ch-dt" readonly></label><label>${he ? 'עד' : 'to'} <input class="ch-dt" readonly></label>
+        <select class="ch-sel wide" data-chf aria-label="${he ? 'סיווג' : 'Category'}">${opts.map(([v, t]) => `<option value="${v}"${(ctx.filter ?? -1) === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
+        <select class="ch-sel" disabled aria-label="${he ? 'מדבקות' : 'Labels'}"><option>${he ? 'כל המדבקות' : 'All labels'}</option></select>
+        <label class="ch-cb"><input type="checkbox" disabled> ${he ? 'כולל ארכיון' : 'Include archive'}</label></div>
       <div class="ch-scroll">${body ? `<table class="ch-t"><thead>${head}</thead><tbody>${body}</tbody></table>` : `<p class="ch-empty" dir="rtl">${he ? 'אין עדיין תוצאות' : 'No results yet'}</p>`}</div>
       <div class="ch-trend" hidden></div></div>`;
   }

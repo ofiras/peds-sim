@@ -205,7 +205,7 @@
       msg(PR.by === 'md' ? 'you' : 'nurse', PR.by === 'md' ? L.youStart(oname(id), PR.min) : L.nurseStart(oname(id), PR.min));
       renderSitu(); return;
     }
-    S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)), ce: m.ce, gcs: m.GCS });
+    S.log.push({ t: now(), id, p: JSON.parse(JSON.stringify(p)), ce: m.ce, gcs: m.GCS, w });
     const MS = L.msgs;
     switch (id) {
       case 'historyQ': msg('sys', `${L.history}: ${CT().history}`); break;
@@ -380,7 +380,19 @@
     once('breakfast', clock >= 7 * 60 + 30 && clock < 12 * 60 && m.pH > 7.3 && m.HCO3 > 18 && m.GCS >= 14 && !m.vent, () => msg('nurse', MS.breakfast + (LEVEL === 'guided' ? ' ' + MS.breakfastG : ''), true));
     /* the case ends once he is on subcutaneous insulin, the drip is off and he has eaten */
     if (did('scRapid') && m.inf.insulin === 0 && S.flags.po && m.pH > 7.3 && t - Math.max(firstT('scRapid'), firstT('stopDrip') ?? 0) >= 60) endCase();
+    if (C.shiftEnd != null && !S.flags.shiftAsked && t > 0 && clock === C.shiftEnd) handover();
     if (t >= 24 * 60) endCase();
+  }
+  function handover() {
+    S.flags.shiftAsked = true;
+    const sp = S.speed, m = S.m, g = S.res.filter(r => r.ready <= now() && typeof (r.v || {}).pH === 'number').pop(), MS = L.msgs;
+    const left = [m.inf.insulin > 0 && MS.hoDrip(m.inf.insulin), g && !(g.v.pH > 7.3 && g.v.HCO3 > 18) && MS.hoAcid(g.v.pH, g.v.HCO3), !S.flags.po && MS.hoMeal].filter(Boolean);
+    S.speed = 0; $$('.scrim').forEach(x => x.remove());
+    const md = modal(`<span class="eyebrow">${hhmm(C.startClock + now())}</span><h2>${esc(MS.hoT)}</h2><p>${esc(MS.hoP)}</p>${left.length ? `<ul class="holeft">${left.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}<div class="row"><button class="btn primary" data-ho>${esc(MS.hoEnd)}</button><button class="btn ghost" data-stay>${esc(MS.hoStay)}</button></div>`);
+    md.el.onclick = e => {
+      if (e.target.closest('[data-ho]')) { md.close(); S.handover = now(); endCase(); }
+      else if (e.target.closest('[data-stay]')) { md.close(); S.speed = sp || 1; msg('sys', MS.hoStayed); renderStatus(); }
+    };
   }
 
   /* ---------------- rendering (the PALS resus-bay look) ---------------- */
@@ -432,6 +444,7 @@
         <div class="situ" id="situ"></div>
         <div class="cart" id="cart">${cartHTML()}</div>
         <details class="recorder" open><summary><span>${esc(L.flowT)}</span><span id="flowN"></span></summary><div class="flow" id="flow"></div></details>
+        <details class="recorder" open><summary><span>${esc(L.txT)}</span><span id="txN"></span></summary><ol id="txL"></ol></details>
         <details class="recorder"><summary><span>${esc(L.logT)}</span><span id="logN"></span></summary><ol id="recL"></ol></details>
       </section>
     </div></div>`;
@@ -590,6 +603,7 @@
     m.inf.boluses.filter(b => b.left > 0).forEach(b => rows.push([null, `${oname('bolus')}: ${L.fl[b.fluid]} · ${Math.round(b.left)} mL`]));
     Object.entries(S.standing).forEach(([k, o]) => rows.push([k, oname(k).includes(L.every(o.every / 60)) ? oname(k) : `${oname(k)} · ${L.every(o.every / 60)}`]));
     const who = { nurse: L.nurseSays, att: L.attSays, lab: L.lab, sys: L.sys, you: L.youSays, cons: L.consSays };
+    renderTx();
     el.innerHTML = `<div class="hd"><span class="eyebrow">${esc(L.latest)} · ${last ? hhmm(C.startClock + last.t) : ''}</span></div>
       ${last ? `<div class="fb ${last.crit ? 'bad' : last.kind === 'att' ? 'ok' : 'note'}"><b>${esc(who[last.kind])}</b><span>${esc(last.text)}</span>${last.res != null ? `<span><button class="btn sm" data-res="${last.res}">${esc(L.view)}</button></span>` : ''}</div>` : ''}
       <div class="actl"><span class="eyebrow">${esc(L.active)}</span>${rows.length ? rows.map(([k, txt]) => `<div class="act"><span>${esc(txt)}</span>${k ? `<button class="btn sm ghost" data-stop="${k}">${esc(L.stop)}</button>` : ''}</div>`).join('') : `<p class="muted">${esc(L.none)}</p>`}</div>`;
@@ -653,16 +667,17 @@
       if (e.target.closest('[data-bk]')) { md.close(); o.back(); return; }
       if (e.target.closest('[data-x]') || e.target === md.el) md.close();
     });
-    if (r.kind === 'ecg') { const draw = () => { const cv = $('#ecgc', md.el); if (cv && cv.isConnected && RV.ecg12(cv, r.v) === false) setTimeout(draw, 200); }; requestAnimationFrame(draw); }
+    /* drawn straight away (the modal is already laid out); retried with timers, since animation frames stall in background tabs */
+    if (r.kind === 'ecg') { let n = 0; const draw = () => { const cv = $('#ecgc', md.el); if (cv && cv.isConnected && RV.ecg12(cv, r.v) === false && n++ < 25) setTimeout(draw, 120); }; draw(); }
   }
   function flash(btn) { if (!btn) return; btn.classList.add('flashok'); setTimeout(() => btn.classList.remove('flashok'), 500); UI.Sound.ok && UI.Sound.ok(); }
-  const ROWS = ['G', 'pH', 'pCO2', 'HCO3', 'Na', 'NaC', 'K', 'Cl', 'AG', 'eOsm', 'BUN', 'Cr', 'Ca', 'P', 'Mg', 'BHB', 'lact', 'GCS', 'pupils', 'UO', 'IN', 'OUT'];
+  const ROWS = ['G', 'pH', 'pCO2', 'HCO3', 'Na', 'NaC', 'K', 'eOsm', 'BHB', 'GCS', 'pupils', 'UO', 'IN', 'OUT'];
   const FLOW_KINDS = ['poc', 'vbg', 'abg', 'chem', 'bhb', 'neuro', 'io'];
   function renderFlow() {
     const el = $('#flow'); if (!el || !S) return;
-    const t = now(), cols = {}, txt = [];
+    const t = now(), cols = {};
     S.res.forEach(r => {
-      if (!FLOW_KINDS.includes(r.kind)) { if (r.ready <= t) txt.push(r); return; }
+      if (!FLOW_KINDS.includes(r.kind)) return;
       const key = r.drawn; (cols[key] = cols[key] || { t: r.drawn, v: {}, src: {}, pend: false });
       if (r.ready > t) cols[key].pend = true; else { Object.assign(cols[key].v, r.v); Object.keys(r.v).forEach(k => { cols[key].src[k] = S.res.indexOf(r); }); }
     });
@@ -671,8 +686,27 @@
     const rows = ROWS.filter(k => cs.some(c => c.v[k] != null));
     const flag = (k, v) => ({ G: v < 70 || v > 250, pH: v < 7.3, HCO3: v < 18, K: v < 3.5 || v > 5.5, Na: v < 135 || v > 145, NaC: v < 135 || v > 150, P: v < 2 }[k] ? 'hi' : '');
     el.innerHTML = (cs.length ? `<div class="tw"><table><thead><tr><th>${esc(L.flow.time)}</th>${cs.map(c => `<th>${hhmm(C.startClock + c.t)}</th>`).join('')}</tr></thead><tbody>${rows.map(k => `<tr><th>${esc(L.flow[k])}</th>${cs.map(c => c.v[k] == null ? `<td>${c.pend ? '…' : ''}</td>` : (c.src[k] != null && !['neuro', 'io'].includes(S.res[c.src[k]].kind) ? `<td class="${flag(k, c.v[k])} go" data-res="${c.src[k]}">${esc(c.v[k])}</td>` : `<td class="${flag(k, c.v[k])}">${esc(k === 'pupils' ? L.pupilsV[c.v[k]] || c.v[k] : c.v[k])}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${esc(L.none)}</p>`)
-      + (txt.length ? `<ul class="txtres">${txt.map(r => `<li><button class="rlink" data-res="${S.res.indexOf(r)}"><b>${hhmm(C.startClock + r.drawn)} · ${esc(oname(r.kind))}</b> · ${esc(L.view)}</button></li>`).join('')}</ul>` : '');
+;
     const fn = $('#flowN'); if (fn) fn.textContent = cs.length ? hhmm(C.startClock + cs[cs.length - 1].t) : '';
+  }
+  /* treatments given, newest first, with the dose per kg and the amount it came to */
+  const TX = ['o2', 'bolus', 'main', 'insDrip', 'insBolus', 'stopDrip', 'scRapid', 'scBasal', 'mannitol', 'hts', 'bicarb', 'kpo', 'kphos', 'dexBolus', 'prbc', 'ffp', 'plt', 'albumin', 'cagluc', 'ondan', 'paracet', 'morphine', 'midaz', 'ceftriax', 'intub'];
+  const TX_U = { mlkg: ['mlkg', 'ml'], gkg: ['gkg', 'g'], meqkg: ['meqkg', 'meq'], mmolkg: ['mmolkg', 'mmol'], mgkg: ['mgkg', 'mg'] };
+  function txText(e) {
+    const p = e.p || {}, w = e.w || dw(), U = L.txU, amt = (v, u) => `${v} ${L.f[u]} (${r1(v * w)} ${U[TX_U[u][1]]})`;
+    if (e.id === 'o2') return EXTRA[LANG].modes[p.mode] || p.mode || '';
+    if (e.id === 'bolus') return `${L.fl[p.fluid]} · ${amt(+p.mlkg, 'mlkg')} · ${p.over} ${L.min}`;
+    if (e.id === 'main') return `${L.fl[p.base]}${+p.dex ? ' + D' + p.dex + '%' : ''}${+p.kcl ? ' + KCl ' + p.kcl : ''} · ${p.rate} ${L.mlh}`;
+    if (e.id === 'insDrip') return `${p.dose} ${L.f.ukgh} (${r1(p.dose * w)} ${L.uh})`;
+    if (['insBolus', 'scRapid', 'scBasal'].includes(e.id)) return `${p.dose} ${L.f.ukg} (${r1(p.dose * w)} ${L.u})`;
+    const k = Object.keys(TX_U).find(k => p[k] != null);
+    return k ? amt(+p[k], k) : '';
+  }
+  function renderTx() {
+    const el = $('#txL'); if (!el || !S) return;
+    const lg = S.log.filter(e => TX.includes(e.id) || (e.id === 'stop' && TX.includes(e.p.k)));
+    el.innerHTML = lg.length ? lg.slice().reverse().map(e => `<li class="${e.id === 'stop' || e.id === 'stopDrip' ? '' : 'ok'}"><span>${hhmm(C.startClock + e.t)}</span><span><b>${esc(e.id === 'stop' ? L.stopped(oname(e.p.k)) : oname(e.id))}</b>${e.id === 'stop' ? '' : (t => t ? `<small class="txd">${esc(t)}</small>` : '')(txText(e))}</span></li>`).join('') : `<li><span></span><span>${esc(L.none)}</span></li>`;
+    const n = $('#txN'); if (n) n.textContent = lg.length || '';
   }
   function renderFeed() {
     const el = $('#recL'); if (!el || !S) return;
@@ -775,8 +809,10 @@
     const sc = lg.find(e => e.id === 'scRapid'), clock = t => (C.startClock + t) % 1440;
     const mealOk = sc && S.flags.poAt != null && S.flags.poAt >= sc.t - 5 && S.flags.poAt <= sc.t + 45;
     const exitOk = mealOk && res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) && S.flags.po && lg.some(e => (e.id === 'stopDrip' || (e.id === 'stop' && e.p.k === 'insDrip')) && e.t >= sc.t - 5 && e.t <= sc.t + 60) && !(clock(sc.t) >= 23 * 60 || clock(sc.t) < 6 * 60);
-    add('exit', 6, !!exitOk, 'Leaving DKA: pH above 7.3 and HCO₃ above 18, eating without nausea; rapid insulin SC right before a meal, then stop the drip. Not in the middle of the night.', 'יציאה מ-DKA: pH מעל 7.3 ו-HCO₃ מעל 18, אוכל בלי בחילה; אינסולין מהיר תת-עורי מיד לפני ארוחה, ואז להפסיק את העירוי. לא באמצע הלילה.', 'prot');
+    const handedOver = S.handover != null && !sc && !res.some(r => r.ready <= S.handover && r.v.pH > 7.3 && r.v.HCO3 > 18);
+    add('exit', handedOver ? 0 : 6, !!exitOk, 'Leaving DKA: pH above 7.3 and HCO₃ above 18, eating without nausea; rapid insulin SC right before a meal, then stop the drip. Not in the middle of the night.', 'יציאה מ-DKA: pH מעל 7.3 ו-HCO₃ מעל 18, אוכל בלי בחילה; אינסולין מהיר תת-עורי מיד לפני ארוחה, ואז להפסיק את העירוי. לא באמצע הלילה.', 'prot');
     why(sc ? `Rapid SC insulin ${at(sc.t)}${S.flags.po ? '' : '; he did not eat'}${!res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) ? '; no gas showing pH > 7.3 and HCO₃ > 18 before it' : ''}.` : 'He never left DKA care (no SC insulin before a meal).', sc ? `אינסולין מהיר תת-עורי ${at(sc.t)}${S.flags.po ? '' : '; לא אכל'}${!res.some(r => r.ready <= sc.t && r.v.pH > 7.3 && r.v.HCO3 > 18) ? '; לא היה גז עם pH מעל 7.3 ו-HCO₃ מעל 18 לפני כן' : ''}.` : 'לא הגיע ליציאה מ-DKA (אין אינסולין תת-עורי לפני ארוחה).');
+    if (handedOver) { R[R.length - 1].ho = true; R[R.length - 1].why = he ? `נמסר למשמרת הבוקר ב-${hhmm(C.startClock + S.handover)} לפני סיום החמצת: היציאה מ-DKA לא נשפטת.` : `Handed over to the morning team at ${hhmm(C.startClock + S.handover)} before the acidosis resolved: the exit is not scored.`; }
     if (sc) { const stop = lg.find(e => (e.id === 'stopDrip' || (e.id === 'stop' && e.p.k === 'insDrip')) && e.t >= sc.t - 5), night = clock(sc.t) >= 23 * 60 || clock(sc.t) < 6 * 60;
       R[R.length - 1].why += (!stop ? (he ? ' העירוי לא הופסק.' : ' The drip was not stopped.') : stop.t > sc.t + 60 ? (he ? ` העירוי הופסק ${Math.round(stop.t - sc.t)} דק׳ אחרי האינסולין (יעד: עד 60).` : ` The drip was stopped ${Math.round(stop.t - sc.t)} min after the insulin (target: within 60).`) : '') + (night ? (he ? ' באמצע הלילה.' : ' In the middle of the night.') : ''); }
     if (sc && S.flags.poAt != null && !mealOk) R[R.length - 1].why += he ? ` הוא אכל ב-${at(S.flags.poAt)}, לפני האינסולין: האינסולין המהיר ניתן מיד לפני הארוחה.` : ` He ate at ${at(S.flags.poAt)}, before the insulin: rapid insulin goes right before the meal.`;
@@ -809,8 +845,8 @@
     S.ended = true; S.speed = 0; stopLoop(); $$('.scrim,.redeb').forEach(x => x.remove());
     const { R, pct } = rubric(), SRC = C.src;
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
-      <div class="score"><b>${pct}%</b><span>${esc(S.m.dead ? L.outDied : S.m.injury > 0 ? L.outInjury : L.outOk)} · +${esc(dur(S.m.t))}</span></div>
-      <h3>${esc(L.rubric)}</h3><ul class="rub">${R.map(r => `<li class="${r.ok ? 'ok' : r.got > 0 ? 'part' : 'bad'}"><span class="mk">${r.ok ? '✓' : r.got > 0 ? '◐' : '✗'}</span><span>${esc(r.txt)}${r.why && !r.ok ? `<em class="why">${esc(r.why)}</em>` : ''} <small>${esc((SRC[r.src] || {})[LANG] || '')}</small></span></li>`).join('')}</ul>
+      <div class="score"><b>${pct}%</b><span>${esc(S.m.dead ? L.outDied : S.m.injury > 0 ? L.outInjury : L.outOk)}${S.handover != null ? ' · ' + esc(L.msgs.hoDone) : ''} · +${esc(dur(S.m.t))}</span></div>
+      <h3>${esc(L.rubric)}</h3><ul class="rub">${R.map(r => `<li class="${r.ho ? 'na' : r.ok ? 'ok' : r.got > 0 ? 'part' : 'bad'}"><span class="mk">${r.ho ? '–' : r.ok ? '✓' : r.got > 0 ? '◐' : '✗'}</span><span>${esc(r.txt)}${r.why && !r.ok ? `<em class="why">${esc(r.why)}</em>` : ''} <small>${esc((SRC[r.src] || {})[LANG] || '')}</small></span></li>`).join('')}</ul>
       <h3>${esc(L.charts)}</h3><div class="charts">${chart('G', L.flow.G, 150, 250, '#ffd84a')}${chart('K', L.flow.K, 4, 5, '#3ef08f')}${chart('pH', 'pH', 7.3, 7.45, '#4fc3ff')}${chart('NaC', L.flow.NaC, 135, 145, '#ff8a4c')}${chart('eOsm', L.flow.eOsm, 280, 300, '#c39bff')}${chart('GCS', 'GCS', 14, 15, '#ff6b7a')}</div>
       <div class="row"><button class="btn primary" data-again>${esc(L.again)}</button><button class="btn ghost" data-home2>${esc(L.home)}</button><button class="btn ghost" data-lang>${esc(L.lang)}</button><button class="btn ghost" data-chart>${esc(L.toChart)}</button></div>`, 'wide');
     md.el.addEventListener('click', e => { if (e.target.closest('[data-chart]')) { md.close(); const b = document.createElement('button'); b.className = 'btn primary redeb'; b.textContent = L.debrief; b.onclick = () => { b.remove(); S.ended = false; endCase(); }; document.body.appendChild(b); return; } if (e.target.closest('[data-again]')) { md.close(); startCase(); } else if (e.target.closest('[data-home2]')) { md.close(); home(); } });

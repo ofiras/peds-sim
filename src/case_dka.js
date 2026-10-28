@@ -4,6 +4,7 @@
 window.CASE_DKA = {
   id: 'dka1',
   startClock: 22 * 60,                 // arrives at 22:00
+  shiftEnd: 8 * 60,                    // the night shift ends at 08:00: hand over, or stay until he is off the drip
   model: { wt: 32, wt0: 35, age: 10, deficitMl: 3000, glucose: 545, ketoacid: 19.5, naCorr: 137.1, kDeficit: 5, ceAt: 330, ceRiskBase: 0.5, temp: 37.0 },
   en: {
     title: 'New-onset diabetes in DKA',
