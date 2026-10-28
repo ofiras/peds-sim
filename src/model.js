@@ -47,7 +47,7 @@
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
     const insFrac = clamp(Math.max(s.Ieff + (s.Ibol || 0), s.Ifloor) / 0.1, 0, 1.3);
-    s.K = 5.4 - 0.5 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
+    s.K = 7.2 - 0.8 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 1.0 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
     s.BUN = 11 + 18 * Math.min(1.4, defPct / 8.5) * clamp(1 - 0.45 * s.io.inTotal / 3000, 0.5, 1);   // urea clears as the kidneys are perfused again
