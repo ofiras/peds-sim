@@ -40,7 +40,7 @@
        alveolar ventilation (tidal volume minus ~2.2 mL/kg dead space, times rate) of 96 mL/kg/min holds a pCO2 of 40 */
     const vs = s.vent && s.ventSet;
     s.pCO2tgt = 1.5 * s.HCO3 + 8;
-    s.pCO2 = clamp(vs ? 40 * 96 / Math.max(10, (vs.tv - 2.2) * vs.rr) : s.pCO2tgt + (s.ce > 0.55 && !s.vent ? (s.ce - 0.55) * 60 : 0), 12, 110);
+    s.pCO2 = clamp(vs ? (s.pCO2v ?? 40 * 96 / Math.max(10, (vs.tv - 2.2) * vs.rr)) : s.pCO2tgt + (s.ce > 0.55 && !s.vent ? (s.ce - 0.55) * 60 : 0), 12, 110);
     s.pH = 6.1 + Math.log10(s.HCO3 / (0.0307 * s.pCO2));
     s.Na = s.NaC - 1.6 * Math.max(0, s.G - 100) / 100;
     s.Cl = s.Na - 32 + s.clD;
@@ -157,6 +157,7 @@
       else s.arrestAt = null;
     }
     /* on the ventilator: CO2 above what he needs dilates cerebral vessels (edema worsens) and drops the pH; a pH below 6.9 for 30 min is fatal */
+    if (s.vent && s.ventSet) { const tg = clamp(40 * 96 / Math.max(10, (s.ventSet.tv - 2.2) * s.ventSet.rr), 12, 110), p0 = s.pCO2v ?? s.pCO2; s.pCO2v = p0 + (tg - p0) * (1 - Math.exp(-dt / 6)); } else s.pCO2v = null;   // CO2 washes in or out over ~6 min
     if (s.bpDrop) s.bpDrop = Math.max(0, s.bpDrop - 1.5 * dt);
     if (s.kBump) s.kBump = Math.max(0, s.kBump - 0.04 * dt);
     if (s.vent && s.ventSet && !s.dead) {
