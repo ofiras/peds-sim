@@ -36,14 +36,18 @@
     s.defPct = defPct;
     s.perf = clamp(1 - Math.max(0, defPct - 3) * 0.07, 0.4, 1);
     s.HCO3 = clamp(24 - s.A - s.clD, 2, 30);
-    s.pCO2 = clamp(1.5 * s.HCO3 + 8 + (s.ce > 0.55 && !s.vent ? (s.ce - 0.55) * 60 : 0), 12, 80);   // ventilated: kept at the pre-deterioration level
+    /* breathing on his own he compensates (Winter's formula); on the ventilator the pCO2 is whatever the minute ventilation gives:
+       alveolar ventilation (tidal volume minus ~2.2 mL/kg dead space, times rate) of 96 mL/kg/min holds a pCO2 of 40 */
+    const vs = s.vent && s.ventSet;
+    s.pCO2tgt = 1.5 * s.HCO3 + 8;
+    s.pCO2 = clamp(vs ? 40 * 96 / Math.max(10, (vs.tv - 2.2) * vs.rr) : s.pCO2tgt + (s.ce > 0.55 && !s.vent ? (s.ce - 0.55) * 60 : 0), 12, 110);
     s.pH = 6.1 + Math.log10(s.HCO3 / (0.0307 * s.pCO2));
     s.Na = s.NaC - 1.6 * Math.max(0, s.G - 100) / 100;
     s.Cl = s.Na - 32 + s.clD;
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
     const insFrac = clamp(Math.max(s.Ieff, s.Ifloor) / 0.1, 0, 1.3);
-    s.K = 4.4 - 0.3 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300;
+    s.K = 4.4 - 0.3 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
     s.BUN = 11 + 18 * Math.min(1.4, defPct / 8.5);
@@ -52,9 +56,9 @@
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
     s.HR = Math.round(88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
-    s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS);
+    s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH));
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS);
-    s.RR = s.vent ? 22 : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
+    s.RR = s.vent ? (vs ? vs.rr : 22) : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
     s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99);
     s.CRT = Math.round((2 + Math.max(0, defPct - 6) * 0.45) * 2) / 2;
     if (s.arrestAt != null) { s.HR = 45; s.SBP = 150; s.RR = s.vent ? 22 : 4; s.SpO2 = s.vent ? 96 : 78; }
@@ -147,6 +151,14 @@
       /* herniation: a 10-minute peri-arrest window (apnea, Cushing response) in which osmotherapy and intubation can still save him */
       if (s.ce >= (s.vent ? 1.05 : 0.95)) { if (s.arrestAt == null) s.arrestAt = s.t; else if (s.t - s.arrestAt >= 10) { s.dead = true; s.deadAt = s.t; } }
       else s.arrestAt = null;
+    }
+    /* on the ventilator: CO2 above what he needs dilates cerebral vessels (edema worsens) and drops the pH; a pH below 6.9 for 30 min is fatal */
+    if (s.bpDrop) s.bpDrop = Math.max(0, s.bpDrop - 1.5 * dt);
+    if (s.kBump) s.kBump = Math.max(0, s.kBump - 0.04 * dt);
+    if (s.vent && s.ventSet && !s.dead) {
+      const ex = s.pCO2 - s.pCO2tgt;
+      if (ex > 6) { s.ce += 0.006 * (ex - 6) * h; if (s.ceOn == null) s.ceOn = s.t; }
+      if (s.pH < 6.9) { s.acidMin = (s.acidMin || 0) + dt; if (s.acidMin > 30) { s.dead = true; s.deadAt = s.t; s.deadCause = 'acid'; } } else s.acidMin = 0;
     }
     /* deep hypoglycemia that lasts injures the brain; so does a herniation */
     if (s.G < 40) { s.hypoMin = (s.hypoMin || 0) + dt; if (s.hypoMin > 30) s.injury = Math.min(8, (s.injury || 0) + 0.05 * dt); }
