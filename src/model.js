@@ -92,8 +92,9 @@
     const I = Math.max(s.Ieff, s.Ifloor);
     /* fluids in: maintenance line + boluses */
     let vol = m.rate * h, na = F.na * vol / 1000, cl = F.cl * vol / 1000, kIn = m.kcl * vol / 1000, dexMg = m.dex * 10 * vol;
+    let bolusOn = false;
     inf.boluses.forEach(b => {
-      if (b.left <= 0) return;
+      if (b.left <= 0 || bolusOn) return; bolusOn = true;
       const v = Math.min(b.left, b.mlMin * dt); b.left -= v; vol += v;
       const BF = FLUIDS[b.fluid] || FLUIDS.NS; na += BF.na * v / 1000; cl += BF.cl * v / 1000;
       if (b.fluid === 'NS') s.io.inNS += v;
