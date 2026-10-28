@@ -46,7 +46,7 @@
     s.Cl = s.Na - 32 + s.clD;
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
-    const insFrac = clamp(Math.max(s.Ieff, s.Ifloor) / 0.1, 0, 1.3);
+    const insFrac = clamp(Math.max(s.Ieff + (s.Ibol || 0), s.Ifloor) / 0.1, 0, 1.3);
     s.K = 5.4 - 0.5 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
@@ -55,8 +55,8 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(2.5 * Math.sin(s.t / 23) + 88 + 2.5 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
-    const wob = 3 * Math.sin(s.t / 37) + 2 * Math.sin(s.t / 11);   // ordinary beat-to-beat and hour-to-hour drift
+    s.HR = Math.round(3 * Math.sin(s.t / 23) + 2 * Math.sin(s.t / 7) + 88 + 2.5 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    const wob = 4 * Math.sin(s.t / 37) + 3 * Math.sin(s.t / 11) + 2 * Math.sin(s.t / 5.3);   // ordinary beat-to-beat and hour-to-hour drift
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH) + wob);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS + wob * 0.6);
     s.RR = s.vent ? (vs ? vs.rr : 22) : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
@@ -89,7 +89,8 @@
     s.Ifloor = (s.sc || []).reduce((a, d) => { const x = s.t - d.at;
       if (d.kind === 'scBasal') return a + (x > 0 && x < 1440 ? d.dose / 24 * clamp(x / 120, 0, 1) : 0);
       return a + d.dose * 0.5 * (x < 30 ? clamp(x / 30, 0, 1) : x < 180 ? 1 : clamp(1 - (x - 180) / 120, 0, 1)); }, 0);
-    const I = Math.max(s.Ieff, s.Ifloor);
+    s.Ibol = (s.Ibol || 0) * Math.exp(-dt / 20);   // an IV bolus of regular insulin: effect gone within the hour
+    const I = Math.max(s.Ieff + s.Ibol, s.Ifloor);
     /* fluids in: maintenance line + boluses */
     let vol = m.rate * h, na = F.na * vol / 1000, cl = F.cl * vol / 1000, kIn = m.kcl * vol / 1000, dexMg = m.dex * 10 * vol;
     let bolusOn = false;
@@ -130,7 +131,7 @@
     s.G *= ecf / Math.max(1000, ecf - insens * h);
     s.G = Math.max(20, s.G);
     /* ketoacids: production stops with even a low insulin effect (Nelson: 0.02–0.05 u/kg/h), clearance needs insulin and perfusion */
-    const prodA = 1.2 * (1 - clamp(I / 0.035, 0, 1)) * clamp(0.35 + 0.65 * s.defPct / 8.5, 0.35, 1);
+    const prodA = 1.5 * (1 - clamp(I / 0.035, 0, 1)) * clamp(0.35 + 0.65 * s.defPct / 8.5, 0.35, 1);
     const clearA = (0.065 + 0.135 * clamp(I / 0.05, 0, 1)) * s.A * Math.sqrt(s.perf);
     s.A = Math.max(0, s.A + (prodA - clearA) * h - (s.bicarbNow || 0));
     s.bicarbNow = 0;
