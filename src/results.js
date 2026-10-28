@@ -199,7 +199,7 @@
         <div class="ch-h"><h3 dir="rtl">${he ? 'תוצאות מעבדה' : 'Laboratory results'}</h3><div class="ch-pt" dir="rtl">${esc(ctx.pt)}</div>
           <div class="ch-radio" dir="rtl"><label><span class="rb on"></span><b>${he ? 'טבלה מרכזת' : 'Summary table'}</b></label><label><span class="rb"></span>${he ? 'הצגה רגילה' : 'Standard view'}</label></div></div>
         <div class="ch-ic" aria-hidden="true"><span>▥</span><span>⎙</span></div></div>
-      <div class="ch-filt" dir="rtl"><button class="ch-go" type="button">${he ? 'בצע' : 'Go'}</button><label>${he ? 'החל מ' : 'From'} <input class="ch-dt" readonly></label><label>${he ? 'עד' : 'to'} <input class="ch-dt" readonly></label>
+      <div class="ch-filt" dir="${he ? 'rtl' : 'ltr'}"><button class="ch-go" type="button">${he ? 'בצע' : 'Go'}</button><label>${he ? 'החל מ' : 'From'} <input class="ch-dt" readonly></label><label>${he ? 'עד' : 'to'} <input class="ch-dt" readonly></label>
         <select class="ch-sel wide" data-chf aria-label="${he ? 'סיווג' : 'Category'}">${opts.map(([v, t]) => `<option value="${v}"${(ctx.filter ?? -1) === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
         <select class="ch-sel" disabled aria-label="${he ? 'מדבקות' : 'Labels'}"><option>${he ? 'כל המדבקות' : 'All labels'}</option></select>
         <label class="ch-cb"><input type="checkbox" disabled> ${he ? 'כולל ארכיון' : 'Include archive'}</label></div>
@@ -220,5 +220,5 @@
     return `<div class="ch-trhd"><b>${esc(R[0])}${R[1] ? ` (${esc(R[1])})` : ''}</b><span>${ctx.he ? 'טווח ייחוס' : 'Reference'} ${R[2]}-${R[3]}</span><button class="ch-x" data-trx aria-label="${ctx.he ? 'סגירה' : 'Close'}">✕</button></div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(R[0])}">${band}${ticks}<path d="${path}" fill="none" stroke="#1d3fae" stroke-width="2"/>${dots}</svg>`;
   }
   function abnormal(kind, v) { const P = PANELS[kind]; return !!P && P.keys.some(k => v[k] != null && REF[k] && (+v[k] < REF[k][3] || +v[k] > REF[k][4])); }
-  window.RV = { ecg12, ecgText, gasSlip, meter, report, abnormal, cumulative, trend, CUM_KINDS: CUM.flatMap(x => x.kinds).concat(TXT) };
+  window.RV = { admNo: seed0 => fake(seed0 || 7, 2).slice(0, 8), ecg12, ecgText, gasSlip, meter, report, abnormal, cumulative, trend, CUM_KINDS: CUM.flatMap(x => x.kinds).concat(TXT) };
 })();

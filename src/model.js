@@ -167,6 +167,7 @@
     }
     /* deep hypoglycemia that lasts injures the brain; so does a herniation */
     if (s.G < 40) { s.hypoMin = (s.hypoMin || 0) + dt; if (s.hypoMin > 30) s.injury = Math.min(8, (s.injury || 0) + 0.05 * dt); }
+    if (s.G < 30) { s.hypoDeep = (s.hypoDeep || 0) + dt; if (s.hypoDeep > 90 && !s.dead) { s.dead = true; s.deadAt = s.t; s.deadCause = 'hypo'; } } else s.hypoDeep = 0;   // untreated profound hypoglycemia is fatal
     if (s.arrestAt != null) s.injury = Math.max(s.injury || 0, 3);
     derive(s);
     /* hourly record: glucose fall, osmolality fall, corrected sodium trend (risk) */
