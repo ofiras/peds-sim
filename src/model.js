@@ -60,7 +60,7 @@
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH) + wob);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS + wob * 0.6);
     s.RR = s.vent ? (vs ? vs.rr : 22) : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
-    s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99);
+    s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99) - (s.G < 40 && !s.vent ? 7 : 0);
     s.CRT = Math.round((2 + Math.max(0, defPct - 6) * 0.45) * 2) / 2;
     if ((s.acidMin || 0) > 8) { const k = s.acidMin - 8; s.HR = Math.max(30, Math.round(s.HR - 4 * k)); s.SBP = Math.round(s.SBP - 2.5 * k); s.DBP = Math.round(s.DBP - 1.5 * k); }   // severe acidosis: falling HR and BP before arrest
     if (s.arrestAt != null) { s.HR = 45; s.SBP = 150; s.RR = s.vent ? 22 : 4; s.SpO2 = s.vent ? 96 : 78; }
@@ -71,7 +71,7 @@
     if (s.G < 50) g -= 2; if (s.G < 35) g -= 4;
     g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0) + (s.ce > 0.07 && s.ce <= 0.2 ? 1 : 0);
     s.GCS = clamp(g, 3, 15);
-    if (s.vent) s.GCS = Math.min(s.GCS, 7);
+    if (s.vent) s.GCS = Math.min(s.GCS, 3);   // sedated and paralysed
     s.pupils = s.ce > 0.7 ? 'unequal' : s.ce > 0.5 ? 'sluggish' : 'normal';
     s.headache = s.ce > 0.07;
     s.vomit = s.ce > 0.2;
@@ -148,7 +148,7 @@
       if (s.ceDrive == null) s.ceDrive = 1;
       const grow = (0.12 + 0.07 * s.ceRisk + fluidsHigh * 0.1) * (s.headUp ? 0.85 : 1) * s.ceDrive;
       const peak = s.ceRisk < 1.5 ? 0.45 : 1.2;    // careful management: edema stays moderate
-      if (osmo) s.ce = Math.max(0, s.ce - 0.9 * h);
+      if (osmo) s.ce = Math.max(0, s.ce - 0.4 * h);
       else if (s.ce < peak && s.ceDrive > 0.2) s.ce = Math.min(peak, s.ce + grow * h);
       else if (s.ceDrive > 0.2 && !s.mannitol.length && !s.hts.length) s.ce += 0.06 * h;   // never treated: slow progression toward herniation
       else if (s.ceDrive <= 0.2) s.ce = Math.max(0, s.ce - 0.2 * h);
