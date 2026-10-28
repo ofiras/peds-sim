@@ -391,7 +391,9 @@
     timer = setInterval(() => {
       if (!S || S.ended) return;
       if (!S.speed) { renderStatus(); return; }
-      S.acc += (S.m.arrestAt != null || (S.m.acidMin || 0) > 8 ? Math.min(S.speed, 0.1) : S.speed) * 0.1;
+      /* while a result viewer (labs, gas, ECG, meter, report) is open, time crawls: 1 game minute per 20 s */
+      const viewing = !!document.querySelector('.scrim .vw'); document.body.classList.toggle('viewing', viewing);
+      S.acc += (viewing ? Math.min(S.speed, 0.05) : S.m.arrestAt != null || (S.m.acidMin || 0) > 8 ? Math.min(S.speed, 0.1) : S.speed) * 0.1;
       let n = Math.floor(S.acc); S.acc -= n;
       while (n-- > 0 && S.speed && !S.ended) minute();
       renderLive();
@@ -657,7 +659,7 @@
     const cols = Object.keys(by).map(Number).sort((a, b) => b - a).map(dt => Object.assign(caseDate(dt), { t: dt, rs: by[dt], hl: dt === hlT }));
     renderChips();
     const ctx = { he, pt: ptLine(), name: oname, filter };
-    const md = modal(`${RV.cumulative(cols, ctx)}<div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, 'chamw');
+    const md = modal(`${RV.cumulative(cols, ctx)}<div class="row"><button class="btn primary" data-x>${esc(L.back)}</button></div>`, 'chamw vw');
     $('[data-chf]', md.el).addEventListener('change', e => { const v = +e.target.value; md.close(); labList(hlIx, v < 0 ? undefined : v); });
     md.el.addEventListener('click', e => {
       const tr = e.target.closest('[data-tr]'); if (tr) { const box = $('.ch-trend', md.el); box.innerHTML = RV.trend(cols, tr.dataset.tr, ctx); box.hidden = false; return; }
@@ -1027,7 +1029,7 @@
     else if (r.kind === 'poc' || r.kind === 'bhb') { body = `<span class="eyebrow">${esc(oname(r.kind))} · ${ctx.time}</span>${RV.meter(r.kind, r.v, he)}`; cls = 'meterw'; }
     else body = RV.report(r.kind, r.v, ctx);
     const nv = o.nav, prevNext = nv && nv[1] > 1 ? `<button class="btn ghost" data-nv="${nv[0] - 1}"${nv[0] ? '' : ' disabled'}>${he ? '→ קודם' : '← Earlier'}</button><span class="nvc">${nv[0] + 1} / ${nv[1]}</span><button class="btn ghost" data-nv="${nv[0] + 1}"${nv[0] < nv[1] - 1 ? '' : ' disabled'}>${he ? 'הבא ←' : 'Later →'}</button>` : '';
-    const md = modal(`${body}<div class="row">${prevNext}${o.back ? `<button class="btn ghost" data-bk>${he ? 'לרשימה' : 'All results'}</button>` : ''}<button class="btn primary" data-x>${esc(L.back)}</button></div>`, cls);
+    const md = modal(`${body}<div class="row">${prevNext}${o.back ? `<button class="btn ghost" data-bk>${he ? 'לרשימה' : 'All results'}</button>` : ''}<button class="btn primary" data-x>${esc(L.back)}</button></div>`, cls + ' vw');
     md.el.addEventListener('click', e => {
       const n = e.target.closest('[data-nv]'); if (n && !n.disabled) { md.close(); nv[2](+n.dataset.nv); return; }
       if (e.target.closest('[data-bk]')) { md.close(); o.back(); return; }
