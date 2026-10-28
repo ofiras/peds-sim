@@ -130,6 +130,44 @@
   /* Escape closes the top dialog */
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !(S && S.ended)) { const sc = $$('.scrim'); if (sc.length) sc[sc.length - 1].remove(); } });
 
+  /* ---------------- progress: stars per case, experience, rank, badges (this device only) ---------------- */
+  const RANK_XP = [0, 150, 400, 800, 1400, 2200, 3200];
+  const progGet = () => { try { return Object.assign({ xp: 0, stars: {}, ach: {} }, JSON.parse(ls('psim-prog') || '{}')); } catch (e) { return { xp: 0, stars: {}, ach: {} }; } };
+  const rankOf = xp => { let i = 0; while (i + 1 < RANK_XP.length && xp >= RANK_XP[i + 1]) i++; return i; };
+  const starsHTML = (n, cls = '') => `<span class="stars ${cls}" aria-label="${n}/3">${[0, 1, 2].map(i => `<i class="${i < n ? 'on' : ''}">★</i>`).join('')}</span>`;
+  function xpBar(xp) {
+    const r = rankOf(xp), lo = RANK_XP[r], hi = RANK_XP[r + 1], pc = hi ? Math.round((xp - lo) / (hi - lo) * 100) : 100;
+    return `<div class="rank"><span class="rk">${r + 1}</span><div><b>${esc(L.g.ranks[r])}</b><div class="xpbar"><i style="width:${pc}%"></i></div><small>${xp} XP${hi ? ` · ${esc(L.g.next(hi - xp, L.g.ranks[r + 1]))}` : ''}</small></div></div>`;
+  }
+  /* badges: [id, test(R by key, outcome context)] */
+  const ACH = [
+    ['first', () => true], ['survive', c => c.alive], ['perfect', c => c.pct >= 100], ['k', c => c.ok('potassium')], ['smooth', c => c.ok('gfall') && c.ok('hypo')],
+    ['brain', c => c.has('ce') && c.ok('ce') && c.alive], ['airway', c => c.has('vent') && c.ok('vent')], ['family', c => S.log.some(e => e.id === 'parents' && e.t <= 30)],
+    ['clean', c => !c.has('stopped') && !c.has('overrode') && !c.has('extra')], ['night', c => !!S.flags.shiftAsked && S.handover == null && c.alive && c.ok('exit')],
+    ['three', c => c.stars === 3], ['comeback', c => c.prev != null && c.pct >= c.prev + 20]
+  ];
+  function award(R, pct, prevPct) {
+    const P = progGet(), m = S.m, alive = !m.dead && !(m.injury > 0), byKey = k => R.find(r => r.key === k);
+    let stars = m.dead ? 0 : pct >= 90 ? 3 : pct >= 75 ? 2 : pct >= 50 ? 1 : 0;
+    const capped = LEVEL === 'guided' && stars > 2; if (capped) stars = 2;
+    const c = { pct, alive, stars, prev: prevPct, ok: k => !!(byKey(k) && byKey(k).ok), has: k => !!byKey(k) };
+    const items = [[L.g.base(pct, LEVEL === 'guided' ? 1 : 1.5), Math.round(pct * (LEVEL === 'guided' ? 1 : 1.5) * (m.dead ? 0.3 : 1))]];
+    const was = P.stars[C.id] || 0; if (stars > was) { items.push([L.g.newStars(stars - was), 40 * (stars - was)]); P.stars[C.id] = stars; }
+    const fresh = ACH.filter(([id, f]) => !P.ach[id] && f(c)).map(([id]) => id);
+    fresh.forEach(id => { P.ach[id] = Date.now(); items.push([L.g.badge(L.g.ach[id][0]), 30]); });
+    const gained = items.reduce((a, x) => a + x[1], 0), before = P.xp; P.xp += gained;
+    ls('psim-prog', JSON.stringify(P));
+    return { stars, capped, items, gained, fresh, before, after: P.xp, up: rankOf(P.xp) > rankOf(before) };
+  }
+  function gamHTML(G) {
+    return `<div class="gam"><div class="gtop">${starsHTML(G.stars, 'big')}<b class="gxp" dir="ltr">+${G.gained} XP</b>${G.up ? `<span class="lvup">${esc(L.g.lvlUp(L.g.ranks[rankOf(G.after)]))}</span>` : ''}</div>
+      ${G.capped ? `<p class="gcap">${esc(L.g.cap)}</p>` : ''}<ul class="gitems">${G.items.map(([t, x]) => `<li><span>${esc(t)}</span><b dir="ltr">+${x}</b></li>`).join('')}</ul>
+      ${xpBar(G.after)}${G.fresh.length ? `<div class="badges new">${G.fresh.map(id => `<span class="bdg on" title="${esc(L.g.ach[id][1])}"><i>${L.g.icon[id]}</i>${esc(L.g.ach[id][0])}</span>`).join('')}</div>` : ''}</div>`;
+  }
+  function badgesHTML() {
+    const P = progGet();
+    return `<div class="badges">${ACH.map(([id]) => `<span class="bdg ${P.ach[id] ? 'on' : ''}" title="${esc(L.g.ach[id][1])}"><i>${P.ach[id] ? L.g.icon[id] : '🔒'}</i>${esc(L.g.ach[id][0])}<small>${esc(L.g.ach[id][1])}</small></span>`).join('')}</div>`;
+  }
   /* attempts are kept on this device only */
   const histGet = () => { try { return JSON.parse(ls('psim-hist') || '[]'); } catch (e) { return []; } };
   function histHTML() {
@@ -145,12 +183,14 @@
     stopLoop(); S = null; $$('.scrim,.redeb').forEach(x => x.remove());
     app.innerHTML = `<div class="phome"><div class="top"><div><span class="eyebrow">ER · PICU</span><h1>${esc(L.appTitle)}</h1></div><button class="btn ghost" data-lang>${esc(L.lang)}</button></div>
       <p class="sub">${esc(L.appSub)}</p>
+      ${xpBar(progGet().xp)}
       <div class="lvpick"><span class="eyebrow">${esc(L.level)}</span>${['guided', 'indep'].map(k => `<label class="pill ${LEVEL === k ? 'on' : ''}"><input type="radio" name="lv" value="${k}" ${LEVEL === k ? 'checked' : ''}>${esc(L[k])}</label>`).join('')}<small>${esc(L[LEVEL + 'D'])}</small></div>
-      <button class="ccard" data-case><span class="tag">${esc(CT().tag)}</span><b>${esc(CT().title)}</b><span class="muted">${esc(CT().brief)}</span></button>
-      <section class="hist"><h3>${esc(L.hist.title)}</h3>${histHTML()}</section></div>`;
+      <button class="ccard" data-case><span class="tag">${esc(CT().tag)}</span>${starsHTML(progGet().stars[C.id] || 0)}<b>${esc(CT().title)}</b><span class="muted">${esc(CT().brief)}</span></button>
+      <section class="hist"><h3>${esc(L.hist.title)}</h3>${histHTML()}</section>
+      <section class="hist"><h3>${esc(L.g.achT)} <small dir="ltr">${Object.keys(progGet().ach).length}/${ACH.length}</small></h3>${badgesHTML()}</section></div>`;
     $$('input[name=lv]').forEach(r => r.addEventListener('change', () => { LEVEL = r.value; ls('psim-level', LEVEL); home(); }));
     $('[data-case]').addEventListener('click', briefing);
-    const hc = $('[data-hclr]'); if (hc) hc.addEventListener('click', () => { const md = modal(`<p>${esc(L.hist.clearQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = e => { if (e.target.closest('[data-y]')) { ls('psim-hist', JSON.stringify(histGet().filter(x => x.c !== C.id))); md.close(); home(); } else if (e.target.closest('[data-n]')) md.close(); }; });
+    const hc = $('[data-hclr]'); if (hc) hc.addEventListener('click', () => { const md = modal(`<p>${esc(L.hist.clearQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = e => { if (e.target.closest('[data-y]')) { ls('psim-hist', JSON.stringify(histGet().filter(x => x.c !== C.id))); ls('psim-prog', '{}'); md.close(); home(); } else if (e.target.closest('[data-n]')) md.close(); }; });
   }
   function briefing() {
     const m = modal(`<h2>${esc(CT().title)}</h2><p>${esc(CT().brief)}</p><p class="muted">${esc(CT().triage)}</p><div class="row"><button class="btn primary" data-go>${esc(L.start)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
@@ -1171,10 +1211,11 @@
     S.ended = true; S.speed = 0; stopLoop(); $$('.scrim,.redeb').forEach(x => x.remove());
     const { R, pct } = rubric(), SRC = C.src, TLE = tlEvents(); S.tlTx = TLE.filter(e => e.cat === 'tx');
     const prev = histGet().filter(x => x.c === C.id), prevBest = prev.length ? Math.max(...prev.map(x => x.pct)) : null;
-    if (!S.saved) { S.saved = { n: prev.length + 1, best: prevBest }; ls('psim-hist', JSON.stringify(prev.concat({ c: C.id, d: Date.now(), pct, lv: LEVEL, o: S.m.dead ? 'd' : S.m.injury > 0 ? 'i' : 'ok', t: S.m.t, ho: S.handover != null }).concat(histGet().filter(x => x.c !== C.id)).slice(-80))); }
+    if (!S.saved) { S.saved = { n: prev.length + 1, best: prevBest, G: award(R, pct, prev.length ? prev[prev.length - 1].pct : null) }; ls('psim-hist', JSON.stringify(prev.concat({ c: C.id, d: Date.now(), pct, lv: LEVEL, o: S.m.dead ? 'd' : S.m.injury > 0 ? 'i' : 'ok', t: S.m.t, ho: S.handover != null }).concat(histGet().filter(x => x.c !== C.id)).slice(-80))); }
     const PN = C.notes || {};
     const md = modal(`<h2>${esc(L.debrief)} · ${esc(CT().title)}</h2>
       <div class="score"><b>${pct}%</b><span>${esc(S.m.dead ? L.outDied : S.m.injury > 0 ? L.outInjury : L.outOk)}${S.handover != null ? ' · ' + esc(L.msgs.hoDone) : ''} · +${esc(dur(S.m.t))}</span><small class="hline">${esc(L.hist.line(S.saved.n, S.saved.best))}</small></div>
+      ${gamHTML(S.saved.G)}
       <h3>${esc(L.rubric)}</h3><ul class="rub">${R.map(r => `<li class="${r.ho ? 'na' : r.ok ? 'ok' : r.got > 0 ? 'part' : 'bad'}"><span class="mk">${r.ho ? '–' : r.ok ? '✓' : r.got > 0 ? '◐' : '✗'}</span><span>${esc(r.txt)}${r.why && !r.ok ? `<em class="why">${esc(r.why)}</em>` : ''}${!r.ok && PN[r.key] ? `<details class="pn"><summary>${esc(L.pnT)}</summary><p>${esc(PN[r.key][LANG])}</p></details>` : ''} <small>${esc((SRC[r.src] || {})[LANG] || '')}</small></span></li>`).join('')}</ul>
       <h3>${esc(L.charts)}</h3><div class="charts">${chart('G', L.flow.G, 150, 250, '#ffd84a')}${chart('K', L.flow.K, 4, 5, '#3ef08f')}${chart('pH', 'pH', 7.3, 7.45, '#4fc3ff')}${chart('NaC', L.flow.NaC, 135, 145, '#ff8a4c')}${chart('eOsm', L.flow.eOsm, 280, 300, '#c39bff')}${chart('GCS', 'GCS', 14, 15, '#ff6b7a')}</div><p class="tlk">${esc(L.tl.marks)}</p>
       ${timelineHTML(TLE)}
