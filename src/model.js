@@ -47,7 +47,7 @@
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
     const insFrac = clamp(Math.max(s.Ieff, s.Ifloor) / 0.1, 0, 1.3);
-    s.K = 5.4 - 0.5 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0);
+    s.K = 5.4 - 0.5 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
     s.BUN = 11 + 18 * Math.min(1.4, defPct / 8.5);
@@ -69,7 +69,7 @@
     if (s.pH < 7.1) g--;
     if (s.eOsm > 330) g--;
     if (s.G < 50) g -= 2; if (s.G < 35) g -= 4;
-    g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0) + (s.ce > 0.08 && s.ce <= 0.2 ? 1 : 0);
+    g -= Math.round(Math.max(0, s.ce - 0.15) * 11) + Math.round(s.injury || 0) + (s.ce > 0.07 && s.ce <= 0.2 ? 1 : 0);
     s.GCS = clamp(g, 3, 15);
     if (s.vent) s.GCS = Math.min(s.GCS, 7);
     s.pupils = s.ce > 0.7 ? 'unequal' : s.ce > 0.5 ? 'sluggish' : 'normal';
@@ -160,6 +160,8 @@
     if (s.vent && s.ventSet) { const tg = clamp(40 * 96 / Math.max(10, (s.ventSet.tv - 2.2) * s.ventSet.rr), 12, 110), p0 = s.pCO2v ?? s.pCO2; s.pCO2v = p0 + (tg - p0) * (1 - Math.exp(-dt / 6)); } else s.pCO2v = null;   // CO2 washes in or out over ~6 min
     if (s.bpDrop) s.bpDrop = Math.max(0, s.bpDrop - 1.5 * dt);
     if (s.kBump) s.kBump = Math.max(0, s.kBump - 0.04 * dt);
+    if (s.kShift) s.kShift = Math.min(0, s.kShift + 0.004 * dt);
+    if (dm >= 0 && dm < 150) s.Kdef -= 0.4 * w / 150 * dt;   // a meal carries about 0.4 mEq/kg of potassium
     if (s.vent && s.ventSet && !s.dead) {
       const ex = s.pCO2 - s.pCO2tgt;
       if (ex > 6) { s.ce += 0.006 * (ex - 6) * h; if (s.ceOn == null) s.ceOn = s.t; }
