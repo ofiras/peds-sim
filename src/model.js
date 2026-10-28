@@ -47,7 +47,7 @@
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
     const insFrac = clamp(Math.max(s.Ieff + (s.Ibol || 0), s.Ifloor) / 0.1, 0, 1.3);
-    s.K = 7.2 - 0.8 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 1.0 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
+    s.K = 7.2 - 0.8 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - (s.pHK ?? s.pH)) * 10 - 1.0 * (s.insK ?? insFrac) + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0) + (s.kShift || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
     s.BUN = 11 + 18 * Math.min(1.4, defPct / 8.5) * clamp(1 - 0.45 * s.io.inTotal / 3000, 0.5, 1);   // urea clears as the kidneys are perfused again
@@ -160,9 +160,11 @@
     }
     /* on the ventilator: CO2 above what he needs dilates cerebral vessels (edema worsens) and drops the pH; a pH below 6.9 for 30 min is fatal */
     if (s.vent && s.ventSet) { const tg = clamp(40 * 96 / Math.max(10, (s.ventSet.tv - 2.2) * s.ventSet.rr), 12, 110), p0 = s.pCO2v ?? s.pCO2; s.pCO2v = p0 + (tg - p0) * (1 - Math.exp(-dt / 6)); } else s.pCO2v = null;   // CO2 washes in or out over ~6 min
+    { const f = 1 - Math.exp(-dt / 20), iF = clamp(Math.max(s.Ieff + (s.Ibol || 0), s.Ifloor) / 0.1, 0, 1.3); s.pHK = s.pHK == null ? s.pH : s.pHK + (s.pH - s.pHK) * f; s.insK = s.insK == null ? iF : s.insK + (iF - s.insK) * f; }   // cell shifts of K take minutes
     if (s.bpDrop) s.bpDrop = Math.max(0, s.bpDrop - 1.5 * dt);
     if (s.kBump) s.kBump = Math.max(0, s.kBump - 0.04 * dt);
-    if (s.kShift) s.kShift = Math.min(0, s.kShift + 0.004 * dt);
+    if (s.kShiftT) { const mv = Math.max(s.kShiftT, -0.03 * dt); s.kShift = (s.kShift || 0) + mv; s.kShiftT -= mv; }   // a pending shift arrives at up to ~2 mmol/L per hour
+    if (s.kShift && !s.kShiftT) s.kShift = Math.min(0, s.kShift + 0.004 * dt);
     if (dm >= 0 && dm < 150) s.Kdef -= 0.4 * w / 150 * dt;   // a meal carries about 0.4 mEq/kg of potassium
     if (s.vent && s.ventSet && !s.dead) {
       const ex = s.pCO2 - s.pCO2tgt;
