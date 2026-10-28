@@ -3,7 +3,7 @@ window.I18N = {
   en: {
     appTitle: 'Peds ER & PICU Sim', appSub: 'Pediatric emergency and intensive-care simulations for residents: you write the orders, the patient responds over hours.',
     start: 'Start', back: 'Back', lang: 'עברית', level: 'Level', guided: 'Guided', indep: 'Independent',
-    guidedD: 'Calculation helpers in the order forms and a hint when a critical result arrives.', indepD: 'No helpers: calculate rates and doses yourself, like on shift.',
+    guidedD: 'Calculation helpers in the order forms, protocol hints, and the attending stops dangerous orders.', indepD: 'No helpers and no attending safety net: calculate rates and doses yourself; only the nurse checks, like on shift. The debrief catches the rest.',
     caseFile: 'Case', triage: 'Triage', history: 'History', exam: 'Examination',
     clock: 'Time', gasChip: 'Gas', labChip: 'Labs', since: 'Since arrival', paused: 'Paused', play: 'Run', next: 'Next hour', loc: { ED: 'ED', PICU: 'PICU', WARD: 'Ward' }, locWait: 'waiting for PICU', locReady: 'PICU bed ready', locWard: 'waiting for the ward', locWardReady: 'ward bed ready',
     monitor: 'Monitor', orders: 'Orders', results: 'Results', nurse: 'Nurse & events', patient: 'Patient',
@@ -60,7 +60,7 @@ window.I18N = {
   he: {
     appTitle: 'סימולטור מיון וטיפול נמרץ ילדים', appSub: 'סימולציות חירום וטיפול נמרץ ילדים למתמחים: אתם כותבים את ההוראות, והמטופל מגיב לאורך שעות.',
     start: 'התחלה', back: 'חזרה', lang: 'English', level: 'רמה', guided: 'מודרך', indep: 'עצמאי',
-    guidedD: 'עזרי חישוב בטפסי ההוראות ורמז כשמגיעה תוצאה קריטית.', indepD: 'בלי עזרים: מחשבים קצבים ומינונים לבד, כמו במשמרת.',
+    guidedD: 'עזרי חישוב בטפסי ההוראות, רמזי פרוטוקול, והכונן עוצר הוראות מסוכנות.', indepD: 'בלי עזרים ובלי רשת ביטחון של הכונן: מחשבים קצבים ומינונים לבד, ורק האחות בודקת, כמו במשמרת. התחקיר תופס את השאר.',
     caseFile: 'המקרה', triage: 'טריאז׳', history: 'אנמנזה', exam: 'בדיקה',
     clock: 'שעה', gasChip: 'גזים', labChip: 'מעבדה', since: 'מאז ההגעה', paused: 'עצור', play: 'הפעלה', next: 'שעה קדימה', locWait: 'ממתין לט״נ', locReady: 'מיטה בט״נ מוכנה', locWard: 'ממתין למחלקה', locWardReady: 'מיטה במחלקה מוכנה', loc: { ED: 'מיון', PICU: 'טיפול נמרץ', WARD: 'מחלקת ילדים' },
     monitor: 'מוניטור', orders: 'הוראות', results: 'תוצאות', nurse: 'אחות ואירועים', patient: 'המטופל',

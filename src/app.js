@@ -250,16 +250,16 @@
     }
     const wardWhy = id !== 'ward' ? [] : [m.pH < 7.3 && L.msgs.wardR.acid(m.pH.toFixed(2)), m.inf.insulin > 0 && L.msgs.wardR.drip, m.G < 70 && L.msgs.wardR.lowG(Math.round(m.G)), S.ceSignAt != null && now() - S.ceSignAt < 360 && L.msgs.wardR.ce, ((kLastV != null && kLastV < 3.2) || (m.inf.main.rate > 0 && m.inf.main.kcl >= 60)) && L.msgs.wardR.k(kLastV)].filter(Boolean);
     const dyn = wardWhy.length ? 'wardK'
-      : id === 'io_access' && S.flags.iv ? 'ioNoNeed'
-      : id === 'aline' && S.flags.loc === 'ED' ? 'alineED'
-      : id === 'bolus' && (p.mlkg > 10 || p.over < 30) ? 'bolusFast'
-      : id === 'ct' && m.ce < 0.2 && S.ceSignAt == null && m.GCS >= 14 ? 'ctNoSigns'
-      : id === 'ct' && m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120) ? 'ctEarly'
-      : id === 'main' && +p.rate > mt2 ? 'fluidsHigh'
-      : id === 'insDrip' && !m.inf.insulin && !did('insDrip') && (() => { const f0 = S.log.find(e => e.id === 'bolus' || e.id === 'main'); return !f0 || now() - f0.t < 50; })() ? 'insEarly'
+      : LEVEL === 'guided' && id === 'io_access' && S.flags.iv ? 'ioNoNeed'
+      : LEVEL === 'guided' && id === 'aline' && S.flags.loc === 'ED' ? 'alineED'
+      : LEVEL === 'guided' && id === 'bolus' && (p.mlkg > 10 || p.over < 30) ? 'bolusFast'
+      : LEVEL === 'guided' && id === 'ct' && m.ce < 0.2 && S.ceSignAt == null && m.GCS >= 14 ? 'ctNoSigns'
+      : LEVEL === 'guided' && id === 'ct' && m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120) ? 'ctEarly'
+      : LEVEL === 'guided' && id === 'main' && +p.rate > mt2 ? 'fluidsHigh'
+      : LEVEL === 'guided' && id === 'insDrip' && !m.inf.insulin && !did('insDrip') && (() => { const f0 = S.log.find(e => e.id === 'bolus' || e.id === 'main'); return !f0 || now() - f0.t < 50; })() ? 'insEarly'
       : id === 'bolus' && m.inf.boluses.some(b => b.left > 1) ? 'bolusRunning'
       : (id === 'insDrip' && !m.inf.insulin || id === 'insBolus' || id === 'main' && +p.kcl > 0 && !m.inf.main.kcl) && !kKnown && !p.okK ? 'noK'
-      : id === 'insDrip' && +p.dose > 0.1001 ? 'insHigh'
+      : LEVEL === 'guided' && id === 'insDrip' && +p.dose > 0.1001 ? 'insHigh'
       : id === 'insDrip' && +p.dose >= 0.099 && !S.att.some(a => a >= now() - 30) ? 'ins01'
       : id === 'scBasal' && ((C.startClock + now()) % 1440) >= 6 * 60 && ((C.startClock + now()) % 1440) < 17 * 60 ? 'basalTime'
       : id === 'scRapid' && (m.vent || m.GCS < 14 || m.G < 120 || m.pH < 7.3 || vomited) ? 'scQuery'
@@ -267,9 +267,11 @@
       : LEVEL === 'guided' && (id === 'insBolus' || id === 'bicarb') ? id : null;
     const lastLab = S.res.filter(r => r.kind === id).pop();
     const dynText = { ctEarly: L.msgs.ctEarly, noK: L.msgs.noK, ins01: L.msgs.ins01(p.dose), fluidsHigh: L.msgs.fluidsHigh(Math.round(mt2 / 1.1)), scQuery: L.msgs.scQuery(m.vent ? L.msgs.why.vent : m.GCS < 14 ? L.msgs.why.drowsy : m.G < 120 ? L.msgs.why.lowG(Math.round(m.G)) + ' ' + L.msgs.why.lowGHint : vomited ? L.msgs.why.vomit : L.msgs.why.acid), bolusRunning: L.msgs.bolusRunning, insEarly: L.msgs.insEarly, insHigh: L.msgs.insHigh(p.dose), basalTime: L.msgs.basalTime, ioNoNeed: L.msgs.ioNoNeed, alineED: L.msgs.alineED, wardK: L.msgs.wardObj(wardWhy.join('; ')), dupLab: lastLab && L.msgs.dupLab(oname(id), Math.round(now() - lastLab.drawn)) }[dyn];
-    if (dyn && dynText && !p.force) return objection(id, dyn === 'noK' ? Object.assign({}, p, { okK: true }) : p, dynText, ['noK', 'ins01', 'scQuery', 'dupLab', 'bolusRunning', 'basalTime'].includes(dyn) ? 'nurse' : 'att', dyn === 'noK', dyn);
-    if (dyn && W[dyn] && !p.force) return objection(id, p, W[dyn]);
-    if (wk && W[wk] && !p.force) {
+    /* the attending steps in only at the guided level; the nurse's checks and the ward's limits apply at every level */
+    const nurseQ = ['noK', 'ins01', 'scQuery', 'dupLab', 'bolusRunning', 'basalTime'].includes(dyn), attOK = LEVEL === 'guided' || dyn === 'wardK';
+    if (dyn && dynText && !p.force && (nurseQ || attOK)) return objection(id, dyn === 'noK' ? Object.assign({}, p, { okK: true }) : p, dynText, nurseQ ? 'nurse' : 'att', dyn === 'noK', dyn);
+    if (dyn && W[dyn] && !p.force && attOK) return objection(id, p, W[dyn]);
+    if (wk && W[wk] && !p.force && LEVEL === 'guided') {
       if (ONCE.includes(id) && onceDone(id)) { msg('sys', L.already(oname(id))); return; }
       if ((PROC[id] && (S.flags[PROC[id].flag || id] || S.procs[id] != null))) { msg('sys', L.already(oname(id))); return; }
       return objection(id, p, W[wk]);
@@ -439,13 +441,13 @@
     /* at the guided level the nurse points out the two decisions the protocol turns on */
     if (LEVEL === 'guided' && r.v && S.m.inf.main.rate) {
       const mn = S.m.inf.main;
-      if (typeof r.v.K === 'number' && r.v.K > 5.5 && mn.kcl > 0 && !S.fired['gK' + mn.kcl + Math.floor(now() / 120)] && (S.fired['gK' + mn.kcl + Math.floor(now() / 120)] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gKhigh(r.v.K, mn.kcl) + (LEVEL === 'guided' ? ' ' + L.msgs.hK : ''), cond: () => S.m.inf.main.kcl > 0 && S.m.inf.main.rate > 0 });
-      if (typeof r.v.K === 'number' && r.v.K < 3.3 && S.m.inf.insulin > 0 && !S.fired['kHold' + Math.floor(now() / 120)] && (S.fired['kHold' + Math.floor(now() / 120)] = true)) S.later.push({ t: now() + 1, kind: 'nurse', crit: true, text: L.msgs.kHold(r.v.K) + (LEVEL === 'guided' ? ' ' + L.msgs.hKlow : '') });
-      if (typeof r.v.K === 'number' && r.v.K < 5.5 && r.v.K >= 3.5 && mn.rate > 0 && mn.kcl === 0 && !S.fired['gK40' + Math.floor(now() / 240)] && (S.fired['gK40' + Math.floor(now() / 240)] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gKnone(r.v.K) + (LEVEL === 'guided' ? ' ' + L.msgs.hK40 : ''), cond: () => S.m.inf.main.kcl === 0 && !did('scRapid') });
-      if (typeof r.v.K === 'number' && r.v.K < 3.5 && mn.rate > 0 && mn.kcl < 60 && !S.fired['gK60' + Math.floor(now() / 240)] && (S.fired['gK60' + Math.floor(now() / 240)] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gKlowBag(r.v.K, mn.kcl) + (LEVEL === 'guided' ? ' ' + L.msgs.hK60 : ''), cond: () => S.m.inf.main.kcl < 60 && !did('scRapid') });
-      if (typeof r.v.G === 'number' && r.v.G < 300 && mn.dex === 0 && !S.fired.gD5 && (S.fired.gD5 = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gD5(r.v.G) + (LEVEL === 'guided' ? ' ' + L.msgs.hD5 : ''), cond: () => S.m.inf.main.dex === 0 && !did('scRapid') });
-      else if (typeof r.v.G === 'number' && r.v.G > 300 && mn.dex >= 10 && !S.fired['gDd' + mn.dex] && (S.fired['gDd' + mn.dex] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gDdown(r.v.G, mn.dex) });
-      else if (typeof r.v.G === 'number' && r.v.G < 180 && mn.dex > 0 && mn.dex < 10 && !S.fired['gD10' + mn.dex] && (S.fired['gD10' + mn.dex] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gD10(r.v.G, mn.dex) + (LEVEL === 'guided' ? ' ' + L.msgs.hD10 : ''), cond: () => S.m.inf.main.dex > 0 && S.m.inf.main.dex < 10 && !did('scRapid') });
+      if (typeof r.v.K === 'number' && r.v.K > 5.5 && mn.kcl > 0 && !S.fired['gK' + mn.kcl + Math.floor(now() / 120)] && (S.fired['gK' + mn.kcl + Math.floor(now() / 120)] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gKhigh(r.v.K, mn.kcl) + (LEVEL === 'guided' ? ' ' + L.msgs.hK : ''), cond: () => S.m.inf.main.kcl > 0 && S.m.inf.main.rate > 0 });
+      if (typeof r.v.K === 'number' && r.v.K < 3.3 && S.m.inf.insulin > 0 && !S.fired['kHold' + Math.floor(now() / 120)] && (S.fired['kHold' + Math.floor(now() / 120)] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', crit: true, text: L.msgs.kHold(r.v.K) + (LEVEL === 'guided' ? ' ' + L.msgs.hKlow : ''), cond: () => S.m.inf.insulin > 0 && (LEVEL === 'guided' || S.m.K < 3.3) });
+      if (typeof r.v.K === 'number' && r.v.K < 5.5 && r.v.K >= 3.5 && mn.rate > 0 && mn.kcl === 0 && !S.fired['gK40' + Math.floor(now() / 240)] && (S.fired['gK40' + Math.floor(now() / 240)] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gKnone(r.v.K) + (LEVEL === 'guided' ? ' ' + L.msgs.hK40 : ''), cond: () => S.m.inf.main.kcl === 0 && !did('scRapid') });
+      if (typeof r.v.K === 'number' && r.v.K < 3.5 && mn.rate > 0 && mn.kcl < 60 && !S.fired['gK60' + Math.floor(now() / 240)] && (S.fired['gK60' + Math.floor(now() / 240)] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gKlowBag(r.v.K, mn.kcl) + (LEVEL === 'guided' ? ' ' + L.msgs.hK60 : ''), cond: () => S.m.inf.main.kcl < 60 && !did('scRapid') });
+      if (typeof r.v.G === 'number' && r.v.G < 300 && mn.dex === 0 && !S.fired.gD5 && (S.fired.gD5 = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gD5(r.v.G) + (LEVEL === 'guided' ? ' ' + L.msgs.hD5 : ''), cond: () => S.m.inf.main.dex === 0 && !did('scRapid') });
+      else if (typeof r.v.G === 'number' && r.v.G > 300 && mn.dex >= 10 && !S.fired['gDd' + mn.dex] && (S.fired['gDd' + mn.dex] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gDdown(r.v.G, mn.dex), cond: () => S.m.inf.main.dex >= 10 && S.m.G > 250 });
+      else if (typeof r.v.G === 'number' && r.v.G < 180 && mn.dex > 0 && mn.dex < 10 && !S.fired['gD10' + mn.dex] && (S.fired['gD10' + mn.dex] = true)) S.later.push({ t: now() + (LEVEL === 'guided' ? 1 : 60), kind: 'nurse', text: L.msgs.gD10(r.v.G, mn.dex) + (LEVEL === 'guided' ? ' ' + L.msgs.hD10 : ''), cond: () => S.m.inf.main.dex > 0 && S.m.inf.main.dex < 10 && !did('scRapid') });
     }
     if (!r.v || r.kind === 'neuro' || r.kind === 'io') return;
     const ix = S.res.indexOf(r), short = r.kind === 'ecg' ? '\u2066' + RV.ecgText(r.v, LANG === 'he').interp + '\u2069' : r.v.txt != null ? '' : (r.kind === 'poc' ? `\u2066${r.v.G} mg/dL\u2069` : RES_KEYS.filter(k => r.v[k] != null).map(k => k === 'BUN' ? `${L.flow.urea} ${Math.round(r.v.BUN * 2.14)}` : k === 'BHB' ? `\u2068${L.flow.BHB} ${r.v.BHB} mmol/L\u2069` : k === 'pH' ? `\u2066pH ${(+r.v.pH).toFixed(2)}\u2069` : `\u2068${L.flow[k]} ${r.v[k]}\u2069`).join(' · '));
@@ -460,8 +462,8 @@
     if (LEVEL === 'guided' && m.inf.insulin > 0 && m.inf.insulin < 0.045 && m.ce < 0.2 && m.G > 300) { const os = m.mannitol.concat(m.hts).map(d => d.at).pop(); if (os != null && t - os > 120) once('insBack', true, () => msg('nurse', MS.insBack(m.inf.insulin, Math.round(m.G)), true)); }
     if (!S.flags.mon && t > 0 && t % 60 === 0 && !m.dead) { S.lastVit = { t, hr: m.HR, s: m.SBP, d: m.DBP, sp: m.SpO2 }; msg('nurse', MS.vitals(m.HR, m.SBP, m.DBP, m.RR, m.SpO2)); }
     if (S.standing.neuro && S.standing.neuro.every === 15 && S.ceSignAt != null && t - S.ceSignAt > 360 && m.ce < 0.1) { S.standing.neuro.every = 60; msg('nurse', MS.neuroHourly); }
-    if (t >= 60 && !m.inf.main.rate && !m.inf.boluses.some(b => b.left > 1) && (S.flags.iv || S.flags.io) && !m.dead && !(did('scRapid') && m.inf.insulin === 0)) once('noRun' + Math.floor(t / 60), true, () => msg('nurse', m.inf.insulin > 0 ? MS.bolusDoneIns : MS.noRun, true));
-    if (m.inf.insulin === 0 && did('stopDrip') && m.inf.main.dex > 0 && m.inf.main.rate > 0 && m.G > 250) once('dexNoIns', true, () => msg('nurse', MS.dexNoIns(Math.round(m.G)), true));
+    if (t >= 60 && !m.inf.main.rate && !m.inf.boluses.some(b => b.left > 1) && (S.flags.iv || S.flags.io) && !m.dead && !(did('scRapid') && m.inf.insulin === 0)) once('noRun' + Math.floor(t / (LEVEL === 'guided' ? 60 : 120)), true, () => msg('nurse', m.inf.insulin > 0 ? MS.bolusDoneIns : MS.noRun, true));
+    if (m.inf.insulin === 0 && did('stopDrip') && m.inf.main.dex > 0 && m.inf.main.rate > 0 && m.G > 250 && (LEVEL === 'guided' || t - firstT('stopDrip') > 60)) once('dexNoIns', true, () => msg('nurse', MS.dexNoIns(Math.round(m.G)), true));
     if (LEVEL !== 'guided' && t >= 40) once('anyOrders', !S.log.some(e => !['historyQ', 'examQ', 'parents'].includes(e.id)), () => msg('nurse', MS.anyOrders, true));
     if (LEVEL === 'guided' && t >= 45) once('noFluids', !did('bolus') && !did('main'), () => msg('nurse', MS.noFluids, true));
     if (LEVEL === 'guided' && t >= 30) once('labsAsk', !['vbg', 'abg', 'chem', 'poc'].some(did), () => msg('nurse', MS.labsAsk, true));
@@ -483,7 +485,7 @@
     }
     if ((m.vent || m.arrestAt != null || m.GCS <= 8 || m.pupils !== 'normal') && S.flags.loc === 'ED' && !S.flags.picuAt) once('needPicu', true, () => msg('nurse', MS.needPicu, true));
     if (!m.vent && m.arrestAt == null && (m.RR < 9 || m.SpO2 < 92) && S.flags.mon) once('resp' + Math.floor(t / 20), true, () => msg('nurse', MS.respLow(m.RR, m.SpO2), true));
-    { const run = m.inf.boluses.some(b => b.left > 1); if (S.flags.bolRun && !run && !m.inf.main.rate) msg('nurse', m.inf.insulin > 0 ? MS.bolusDoneIns : MS.bolusDone, LEVEL === 'guided' || m.inf.insulin > 0); S.flags.bolRun = run; }
+    { const run = m.inf.boluses.some(b => b.left > 1); if (S.flags.bolRun && !run && !m.inf.main.rate && (LEVEL === 'guided' || m.inf.insulin > 0)) msg('nurse', m.inf.insulin > 0 ? MS.bolusDoneIns : MS.bolusDone, LEVEL === 'guided' || m.inf.insulin > 0); S.flags.bolRun = run; }
     if (m.vent && m.ventSet && S.flags.mon) {
       const ex = m.pCO2 - m.pCO2tgt;
       if (ex > 8 && (S.etLast == null || Math.abs(m.pCO2 - S.etLast) >= 2 || t - (S.etT ?? -99) >= 60)) once('etHi' + Math.floor(t / 15), (S.etT = t, true), () => msg('nurse', MS.etco2Hi(Math.round(m.pCO2 - 3), m.pH < 7 ? Math.round(m.SBP) : null, S.etLast == null || m.pCO2 - S.etLast > 2, S.etLast = m.pCO2) + (LEVEL === 'guided' ? ' ' + MS.etco2G(Math.round(m.pCO2tgt)) : ''), true));
