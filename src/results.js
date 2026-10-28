@@ -34,16 +34,32 @@
 
   /* ---------- blood-gas analyzer slip ---------- */
   const sev = P => 1 / (1 + 23400 / (P * P * P + 150 * P));
+  /* thermal printout of the department analyzer, with the patient sticker on top. All numbers on the sticker are
+     made up from the case seed (a placeholder name, nothing real) */
+  const fake = (seed, n) => { let x = (seed * 9301 + 49297 * n) % 233280, out = ''; for (let k = 0; k < 9; k++) { x = (x * 9301 + 49297) % 233280; out += Math.floor(x / 233280 * 10); } return out.replace(/^0/, '3'); };
+  const barcode = (digits, w) => { let x = 0, bars = ''; const seq = (digits + digits.split('').reverse().join('')).split('').map(Number); seq.forEach((d, k) => { const bw = 1 + (d % 3), gap = 1 + ((d + k) % 2); bars += `<rect x="${x}" y="0" width="${bw}" height="22"/>`; x += bw + gap; }); return `<svg class="bc" viewBox="0 0 ${x} 22" preserveAspectRatio="none" style="width:${w}px">${bars}</svg>`; };
   function gasSlip(v, ctx) {
-    const be = 0.93 * (v.HCO3 - 24.4 + 14.8 * (v.pH - 7.4)), po2 = ctx.arterial ? 95 : 38 + (ctx.seed % 7), so2 = Math.min(99.5, sev(po2) * 100), hb = ctx.hb || 14.8;
-    const row = (n, x0, dp, u, rg) => { const x = +(+x0).toFixed(dp); return `<div class="gr"><span>${n}</span><b>${x.toFixed(dp)}<i>${rg ? (x < rg[0] ? '↓' : x > rg[1] ? '↑' : '') : ''}</i></b><em>${u}</em></div>`; };   // flagged on the printed value, same ranges as the lab
+    const A = !!ctx.arterial, hb = ctx.hb || 14.8, po2 = A ? 92 + (ctx.seed % 9) : 34 + (ctx.seed % 9), so2 = Math.min(99.5, sev(po2) * 100);
+    const beB = (1 - 0.014 * hb) * (v.HCO3 - 24.8 + (1.43 * hb + 7.7) * (v.pH - 7.4)), beE = v.HCO3 - 24.8 + 16.2 * (v.pH - 7.4), std = 24.4 + 0.79 * beB;
+    const coh = 0.6 + (ctx.seed % 5) / 10, met = 0.4 + (ctx.seed % 3) / 10, fo2 = so2 * (100 - coh - met) / 100, fhh = 100 - fo2 - coh - met;
+    /* flagged on the printed value, same ranges as the lab */
+    const row = (n, x0, dp, u, rg) => { const x = +(+x0).toFixed(dp), f = rg ? (x < rg[0] ? '↓' : x > rg[1] ? '↑' : '') : ''; return `<div class="gr"><span>${n}</span><b>${x < 0 ? '– ' + Math.abs(x).toFixed(dp) : x.toFixed(dp)}<i>${f}</i></b><em>${u}</em></div>`; };
+    const [dd, mm, yy] = (ctx.date || '').split('/'), id = fake(ctx.seed0 || 7, 1), adm = fake(ctx.seed0 || 7, 2).slice(0, 8), par = fake(ctx.seed0 || 7, 3);
+    const ward = { 'PICU': 'ט.נ. ילדים', 'PEDS WARD': 'מחלקת ילדים' }[ctx.unit] || 'מיון ילדים';
     return `<div class="paper" dir="ltr" lang="en">
-      <div class="gh"><b>${ctx.arterial ? 'ARTERIAL' : 'VENOUS'} SAMPLE</b><span>${ctx.date}</span><span>${ctx.time}</span><span>System Name</span><span>${esc(ctx.unit || 'PEDS ED')}</span><span>Patient</span><span>${esc(ctx.ptEn || ctx.pt)}</span></div>
-      <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', ctx.arterial ? [7.35, 7.45] : [7.31, 7.41])}${row('pCO₂', v.pCO2, 1, 'mmHg', ctx.arterial ? [35, 45] : [40, 52])}${row('pO₂', po2, 1, 'mmHg', ctx.arterial ? [80, 100] : [30, 50])}${row('HCO₃⁻ act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('BE(B)', be, 1, 'mmol/L', [-2, 2])}
-      <h4>CO-OXIMETRY</h4>${row('Hct', hb * 3, 0, '%', [35, 45])}${row('tHb', hb, 1, 'g/dL', [11.5, 15.5])}${row('sO₂', so2, 1, '%', ctx.arterial ? [95, 100] : [60, 80])}
+      <div class="stk" dir="rtl"><div class="s1"><b>ישראלי ישראל</b><span>בן ${ctx.age ?? ''}</span></div>
+        <div class="s2"><span>${id}</span><span>ת.ז.</span><span class="sx">ז ${ctx.age ?? ''}</span></div>
+        <div class="s3">${barcode(id, 150)}<span>${esc(ctx.adm || ctx.date)}</span></div>
+        <div class="s4"><span>${adm}</span><span>${esc(ctx.adm || ctx.date)}</span></div>
+        <div class="s3">${barcode(adm, 150)}</div>
+        <div class="s5">${ward}</div>
+        <div class="s6"><span>${par}</span><span>הורה: ת.ז. אם</span></div></div>
+      <div class="gh"><span>${A ? 'ARTERIAL' : 'VENOUS'} SAMPLE</span><span></span><span>${dd} . ${mm} . ${yy}</span><span>${ctx.time}</span><span>System Name</span><span>${A ? 'PICU' : 'PEDS-ED'}</span><span>System ID</span><span>0500-${(40000 + (ctx.seed0 || 7) % 9000)}</span><span>Patient ID</span><span>${adm}</span><span>Operator</span><span>${fake((ctx.seed0 || 7) + ctx.seed, 4)}</span></div>
+      <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', A ? [7.35, 7.45] : [7.31, 7.41])}${row('pCO₂', v.pCO2, 1, 'mmHg', A ? [35, 45] : [40, 52])}${row('pO₂', po2, 1, 'mmHg', A ? [80, 100] : [30, 50])}${row('HCO₃⁻act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('HCO₃⁻std', std, 1, 'mmol/L', [22, 26])}${row('BE(B)', beB, 1, 'mmol/L', [-2, 2])}${row('BE(ecf)', beE, 1, 'mmol/L', [-2, 2])}
+      <h4>CO-OXIMETRY</h4>${row('Hct', hb * 2.95, 0, '%', [35, 45])}${row('tHb', hb, 1, 'g/dL', [11.5, 15.5])}${row('sO₂', so2, 1, '%', A ? [95, 100] : [60, 80])}${row('FO₂Hb', fo2, 1, '%', A ? [94, 98] : [58, 79])}${row('FCOHb', coh, 1, '%', [0, 1.5])}${row('FMetHb', met, 1, '%', [0, 1.5])}${row('FHHb', fhh, 1, '%', A ? [0, 5] : [20, 40])}<div class="gsp"></div>${row('nBili', 0.4 + (ctx.seed % 4) / 10, 1, 'mg/dL')}
       <h4>ELECTROLYTES</h4>${row('Na⁺', v.Na, 1, 'mmol/L', [135, 145])}${row('K⁺', v.K, 2, 'mmol/L', [3.5, 5.1])}${row('Ca⁺⁺', 1.16, 2, 'mmol/L', [1.12, 1.32])}${row('Cl⁻', v.Cl, 0, 'mmol/L', [98, 107])}${row('AnGap', v.AG, 1, 'mmol/L', [8, 16])}
       <h4>METABOLITES</h4>${row('Glu', v.G, 0, 'mg/dL', [70, 110])}${row('Lac', v.lact, 2, 'mmol/L', [0.5, 2.2])}
-      <div class="gf">↑, ↓ – Out of range</div></div>`;
+      <div class="gf">↑, ↓ – Out of range</div><div class="gdots">· · · ·</div></div>`;
   }
 
   /* ---------- bedside meters ---------- */
