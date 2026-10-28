@@ -103,7 +103,7 @@
     if (s.htsVol > 0) { const v = Math.min(s.htsVol, 5 * dt); s.htsVol -= v; vol += v; na += 513 * v / 1000; cl += 513 * v / 1000; }
     if (s.manVol > 0) { const v = Math.min(s.manVol, 5 * dt); s.manVol -= v; vol += v; }
     /* outputs */
-    const uo = (s.G > 180 ? 1 + Math.min(2.2, (s.G - 180) / 150) : 1.0) * w * s.perf + (s.manUntil > s.t ? 2 * w : 0);   // mL/h
+    const uo = (s.G > 180 ? 1 + Math.min(2.2, (s.G - 180) / 150) : 1.0) * w * Math.sqrt(s.perf) + (s.manUntil > s.t ? 2 * w : 0);   // mL/h
     const insens = s.maint * 0.3 * (s.RR > 28 ? 1.2 : 1);                                                                // mL/h
     const out = (uo + insens) * h;
     const insV = inf.insulin * w * 10 * h;   // the insulin line (10 units in 100 mL) is charted as intake; too small to matter for the salts
