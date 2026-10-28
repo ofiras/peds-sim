@@ -120,11 +120,11 @@
     const fI = Math.pow(clamp(I / 0.1, 0, 1.5), 0.8);
     const prod = 60 * (1 - 0.8 * clamp(I / 0.05, 0, 1));
     const brain = 40 * clamp(s.G / 80, 0, 1);
-    const upt = 200 * sens * fI * s.G / (s.G + 300);
+    const upt = 200 * sens * fI * s.G / (s.G + 150);
     const renal = s.G > 180 ? (0.25 * (s.G - 180) + 0.35 * Math.max(0, s.G - 450)) * s.perf * clamp(0.6 + 0.4 * (1 - s.defPct / 8.5), 0.6, 1) : 0;
-    const gir = dexMg / w / dt;
+    const gir = dexMg / w / dt, dm = s.mealAt != null ? s.t - s.mealAt : -1, mealGir = dm >= 0 && dm < 150 ? 4 * (dm < 45 ? dm / 45 : (150 - dm) / 105) : 0;   // mg/kg/min from the tray
     const ecf = s.wt0 * 250 - s.deficit * 0.6;
-    s.G += (prod - brain - upt - renal + 30 * gir) * h;
+    s.G += (prod - brain - upt - renal + 30 * (gir + mealGir)) * h;
     s.G *= ecf / (ecf + vol);
     s.G *= ecf / Math.max(1000, ecf - insens * h);
     s.G = Math.max(20, s.G);

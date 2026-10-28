@@ -49,7 +49,7 @@
     return `<div class="paper" dir="ltr" lang="en">
       <div class="stk" dir="rtl"><div class="s1"><b>ישראלי ישראל</b><span>בן ${ctx.age ?? ''}</span></div>
         <div class="s2"><span>${id}</span><span>ת.ז.</span><span class="sx">ז ${ctx.age ?? ''}</span></div>
-        <div class="s3">${barcode(id, 150)}<span>${esc(ctx.adm || ctx.date)}</span></div>
+        <div class="s3">${barcode(id, 150)}<span>${esc(ctx.dob || ctx.adm || ctx.date)}</span></div>
         <div class="s4"><span>${adm}</span><span>${esc(ctx.adm || ctx.date)}</span></div>
         <div class="s3">${barcode(adm, 150)}</div>
         <div class="s5">${ward}</div>
