@@ -54,7 +54,7 @@
         <div class="s3">${barcode(adm, 150)}</div>
         <div class="s5">${ward}</div>
         <div class="s6"><span>${par}</span><span>הורה: ת.ז. אם</span></div></div>
-      <div class="gh"><span>${A ? 'ARTERIAL' : 'VENOUS'} SAMPLE</span><span></span><span>${dd} . ${mm} . ${yy}</span><span>${ctx.time}</span><span>System Name</span><span>${A ? 'PICU' : 'PEDS-ED'}</span><span>System ID</span><span>0500-${(40000 + (ctx.seed0 || 7) % 9000)}</span><span>Patient ID</span><span>${adm}</span><span>Operator</span><span>${fake((ctx.seed0 || 7) + ctx.seed, 4)}</span></div>
+      <div class="gh"><span>${A ? 'ARTERIAL' : 'VENOUS'} SAMPLE</span><span></span><span>${dd} . ${mm} . ${yy}</span><span>${ctx.time}</span><span>System Name</span><span>${ctx.unit === 'PICU' ? 'PICU' : ctx.unit === 'PEDS WARD' ? 'PEDS-WARD' : 'PEDS-ED'}</span><span>System ID</span><span>0500-${(40000 + (ctx.seed0 || 7) % 9000)}</span><span>Patient ID</span><span>${adm}</span><span>Operator</span><span>${fake((ctx.seed0 || 7) + ctx.seed, 4)}</span></div>
       <h4>ACID/BASE 37.0 °C</h4>${row('pH', v.pH, 3, '', A ? [7.35, 7.45] : [7.31, 7.41])}${row('pCO₂', v.pCO2, 1, 'mmHg', A ? [35, 45] : [40, 52])}${row('pO₂', po2, 1, 'mmHg', A ? [80, 100] : [30, 50])}${row('HCO₃⁻act', v.HCO3, 1, 'mmol/L', [22, 26])}${row('HCO₃⁻std', std, 1, 'mmol/L', [22, 26])}${row('BE(B)', beB, 1, 'mmol/L', [-2, 2])}${row('BE(ecf)', beE, 1, 'mmol/L', [-2, 2])}
       <h4>CO-OXIMETRY</h4>${row('Hct', hb * 2.95, 0, '%', [35, 45])}${row('tHb', hb, 1, 'g/dL', [11.5, 15.5])}${row('sO₂', so2, 1, '%', A ? [95, 100] : [60, 80])}${row('FO₂Hb', fo2, 1, '%', A ? [94, 98] : [58, 79])}${row('FCOHb', coh, 1, '%', [0, 1.5])}${row('FMetHb', met, 1, '%', [0, 1.5])}${row('FHHb', fhh, 1, '%', A ? [0, 5] : [20, 40])}<div class="gsp"></div>${row('nBili', 0.4 + (ctx.seed % 4) / 10, 1, 'mg/dL')}
       <h4>ELECTROLYTES</h4>${row('Na⁺', v.Na, 1, 'mmol/L', [135, 145])}${row('K⁺', v.K, 2, 'mmol/L', [3.5, 5.1])}${row('Ca⁺⁺', 1.16, 2, 'mmol/L', [1.12, 1.32])}${row('Cl⁻', v.Cl, 0, 'mmol/L', [98, 107])}${row('AnGap', v.AG, 1, 'mmol/L', [8, 16])}
@@ -105,7 +105,7 @@
 
   /* ---------- cumulative results window, like the hospital system: one column per sample time (newest first),
      tests grouped in sections with units and reference ranges; L/H in a yellow pill, panic values in red ---------- */
-  const BE = v => v.pH != null && v.HCO3 != null ? 0.93 * (v.HCO3 - 24.4 + 14.8 * (v.pH - 7.4)) : null;
+  const BE = v => { if (v.pH == null || v.HCO3 == null) return null; const hb = v.hb || 14.8; return (1 - 0.014 * hb) * (v.HCO3 - 24.8 + (1.43 * hb + 7.7) * (v.pH - 7.4)); };   // same BE(B) as the analyzer slip
   const OSM = v => v.Na != null && v.G != null && v.BUN != null ? 2 * v.Na + v.G / 18 + v.BUN / 2.8 : null;
   /* rows: [label, unit, lo, hi, dp, panicLo, panicHi, value(v), kinds (default: the section's)] */
   const CH = ['chem'], k = key => v => v[key];

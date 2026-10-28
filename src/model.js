@@ -47,7 +47,7 @@
     s.AG = s.Na - s.Cl - s.HCO3;
     s.eOsm = 2 * s.Na + s.G / 18;
     const insFrac = clamp(Math.max(s.Ieff, s.Ifloor) / 0.1, 0, 1.3);
-    s.K = 4.4 - 0.3 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0);
+    s.K = 5.4 - 0.5 * (s.Kdef / s.wt) + 0.6 * Math.max(0, 7.4 - s.pH) * 10 - 0.7 * insFrac + 0.25 * Math.max(0, s.G - 150) / 300 + (s.kBump || 0);
     s.P = 3.6 - 0.9 * (s.Pdef / s.wt) + 4.2 * Math.max(0, 7.4 - s.pH) - 1.2 * insFrac;
     s.BHB = Math.max(0.1, s.A * 0.35);
     s.BUN = 11 + 18 * Math.min(1.4, defPct / 8.5);
@@ -55,13 +55,14 @@
     s.lact = 1.0 + 1.2 * Math.max(0, 1 - s.perf) / 0.4;
     /* hemodynamics and breathing */
     const ceS = Math.max(0, s.ce - 0.25);
-    s.HR = Math.round(88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
+    s.HR = Math.round(2.5 * Math.sin(s.t / 23) + 88 + 4 * Math.max(0, defPct - 3) + 60 * Math.max(0, 7.2 - s.pH) + 6 * (s.temp - 37) - 110 * Math.min(ceS, 0.55) + (s.G < 60 ? 15 : 0) + (s.K < 2.8 ? 6 : 0));
     const wob = 3 * Math.sin(s.t / 37) + 2 * Math.sin(s.t / 11);   // ordinary beat-to-beat and hour-to-hour drift
     s.SBP = Math.round(108 - 4 * Math.max(0, defPct - 7) + 45 * ceS - (s.bpDrop || 0) - 60 * Math.max(0, 6.95 - s.pH) + wob);
     s.DBP = Math.round(64 - 3 * Math.max(0, defPct - 7) + 28 * ceS + wob * 0.6);
     s.RR = s.vent ? (vs ? vs.rr : 22) : Math.round(clamp(16 + Math.max(0, 40 - s.pCO2) * 0.6 - (s.ce > 0.6 ? (s.ce - 0.6) * 40 : 0), 4, 50));
     s.SpO2 = Math.round(s.ce > 0.7 ? 99 - (s.ce - 0.7) * 40 : 99);
     s.CRT = Math.round((2 + Math.max(0, defPct - 6) * 0.45) * 2) / 2;
+    if ((s.acidMin || 0) > 8) { const k = s.acidMin - 8; s.HR = Math.max(30, Math.round(s.HR - 4 * k)); s.SBP = Math.round(s.SBP - 2.5 * k); s.DBP = Math.round(s.DBP - 1.5 * k); }   // severe acidosis: falling HR and BP before arrest
     if (s.arrestAt != null) { s.HR = 45; s.SBP = 150; s.RR = s.vent ? 22 : 4; s.SpO2 = s.vent ? 96 : 78; }
     /* neurology */
     let g = 15;
@@ -135,7 +136,7 @@
     /* hyperchloremia from chloride-rich fluids, slowly excreted */
     s.clD = Math.max(0, s.clD + 0.2 * (cl - 104 * vol / 1000) / (ecf / 1000) - 0.03 * s.clD * h);
     /* potassium and phosphate losses in urine, replacement in fluids (1:1 KCl/KPhos counts as potassium) */
-    s.Kdef = Math.max(-2 * w, s.Kdef + 42 * uo * h / 1000 - kIn - (s.kPO || 0));
+    s.Kdef = Math.max(-2 * w, s.Kdef + (20 + 25 * clamp(s.A / 8, 0, 1)) * uo * h / 1000 - kIn - (s.kPO || 0));
     s.kPO = 0;
     s.Pdef = Math.max(0, s.Pdef + 18 * uo * h / 1000);
     /* cerebral edema: risk rises with what the protocol warns about; the process, once started, grows unless treated */
