@@ -23,7 +23,7 @@
     bolus: [['fluid', 'sel', ['NS', 'LR']], ['mlkg', 'num', 10], ['over', 'num', 60]],
     main: [['base', 'sel', ['NS', 'HALF', 'LR']], ['dex', 'sel', [0, 5, 10, 12.5]], ['kcl', 'sel', [0, 20, 40, 60]], ['rate', 'num', '']],
     dexBolus: [['mlkg', 'num', 2]], prbc: [['mlkg', 'num', 10]], ffp: [['mlkg', 'num', 10]], plt: [['mlkg', 'num', 10]], albumin: [['mlkg', 'num', 10]],
-    insDrip: [['dose', 'num', '']], scRapid: [['dose', 'num', 0.1]], scBasal: [['dose', 'num', 0.2]],
+    insDrip: [['dose', 'num', 0.05]], scRapid: [['dose', 'num', 0.1]], scBasal: [['dose', 'num', 0.2]],
     mannitol: [['gkg', 'num', 0.5]], hts: [['mlkg', 'num', 5]], bicarb: [['meqkg', 'num', 1]], kpo: [['meqkg', 'num', 0.5]], kphos: [['mmolkg', 'num', 0.25]]
   };
   LABS.forEach(k => { if (['poc', 'vbg', 'abg', 'chem', 'bhb', 'ecg'].includes(k)) FORMS[k] = [['freq', 'freq']]; });
@@ -62,8 +62,7 @@
       { o: 'ffp', kind: 'bag', cap: '#ffd23f', name: 'FRESH FROZEN PLASMA', conc: 'thawed', pack: '≈ 250 mL unit' },
       { o: 'plt', kind: 'bag', cap: '#ff8a2a', name: 'PLATELETS', conc: 'apheresis', pack: '≈ 250 mL unit' },
       { o: 'albumin', kind: 'bag', cap: '#e9eef0', name: 'ALBUMIN 5%', conc: 'colloid', pack: '250 mL' },
-      { o: 'cvc', kind: 'cath', name: 'CENTRAL LINE KIT', conc: 'triple lumen', pack: 'femoral / IJ' },
-      { o: 'poc', kind: 'gluco', name: 'GLUCO­METER', conc: 'point of care', pack: '' }
+      { o: 'cvc', kind: 'cath', name: 'CENTRAL LINE KIT', conc: 'triple lumen', pack: 'femoral / IJ' }
     ],
     air: [
       { o: 'o2', kind: 'nrb', name: 'OXYGEN', conc: 'cannula · mask · high-flow', pack: '' },
@@ -73,6 +72,7 @@
       { o: 'lp', kind: 'cath', name: 'LP NEEDLE', conc: '22G spinal', pack: 'with manometer' }
     ],
     lab: [
+      { o: 'poc', kind: 'gluco', name: 'GLUCO­METER', conc: 'point of care', pack: '' },
       { o: 'labSet', kind: 'tubes', name: 'DKA ORDER SET', conc: 'glucose q1h · gas + lytes q2h · chem q4h', pack: 'ketones · CBC · urine · ECG · neuro · I/O' },
       { o: 'vbg', kind: 'syr', cap: '#3d8bff', name: 'BLOOD GAS', conc: 'venous · lytes', pack: '' },
       { o: 'abg', kind: 'syr', cap: '#ff5d73', name: 'ARTERIAL GAS', conc: 'needs an arterial stab or line', pack: '' },
@@ -204,7 +204,7 @@
     S = { date0: new Date().setHours(0, 0, 0, 0), m: M.create(C.model), procs: {}, later: [], log: [], msgs: [], res: [], standing: {}, flags: { loc: 'ED' }, speed: 0, acc: 0, ended: false, fired: {}, att: [], tab: 'drug', uoLow: 0, nbp: { v: null, at: '', busy: false, next: 0, cuff: 0 }, silUntil: 0 };
     msg('sys', CT().triage);
     renderSim(); loop();
-    S.speed = 1; renderClock();   // the clock runs from arrival and never stops
+    S.speed = 0.25; S.autoSlow = true; renderClock();   // the clock runs from arrival and never stops; the first 30 min at quarter speed while the learner gets oriented
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   const now = () => S.m.t;
@@ -422,7 +422,7 @@
   function resultArrived(r) {
     renderFlow(); renderChips();
     /* critical values are phoned by the lab (once per value type every 2 h) */
-    if (r.v && r.kind !== 'poc' && r.kind !== 'bhb') {
+    if (r.v && ['chem', 'cbc', 'coag', 'abg'].includes(r.kind)) {
       const v = r.v, crit = [typeof v.K === 'number' && (v.K < 3 || v.K > 6) && `K ${v.K}`, typeof v.G === 'number' && now() > 30 && (v.G < 50 || v.G > 500) && `${L.flow.G} ${v.G}`, typeof v.pH === 'number' && now() > 30 && v.pH < 7.0 && `pH ${v.pH}`, typeof v.Na === 'number' && (v.Na < 125 || v.Na > 155) && `Na ${v.Na}`, typeof v.HCO3 === 'number' && v.HCO3 < 10 && `HCO₃ ${v.HCO3}`].filter(Boolean);
       crit.forEach(c => once('crit' + c.split(' ')[0] + Math.floor(now() / 120), true, () => S.later.push({ t: now() + 1, kind: 'lab', text: L.msgs.critVal(c), crit: true })));
     }
@@ -436,13 +436,14 @@
       else if (typeof r.v.G === 'number' && r.v.G < 180 && mn.dex > 0 && mn.dex < 10 && !S.fired['gD10' + mn.dex] && (S.fired['gD10' + mn.dex] = true)) S.later.push({ t: now() + 1, kind: 'nurse', text: L.msgs.gD10(r.v.G, mn.dex) + (LEVEL === 'guided' ? ' ' + L.msgs.hD10 : ''), cond: () => S.m.inf.main.dex > 0 && S.m.inf.main.dex < 10 });
     }
     if (!r.v || r.kind === 'neuro' || r.kind === 'io') return;
-    const ix = S.res.indexOf(r), short = r.kind === 'ecg' ? RV.ecgText(r.v, LANG === 'he').interp : r.v.txt != null ? '' : (r.kind === 'poc' ? `${r.v.G} mg/dL` : RES_KEYS.filter(k => r.v[k] != null).map(k => k === 'BUN' ? `${L.flow.urea} ${Math.round(r.v.BUN * 2.14)}` : k === 'BHB' ? `\u2068${L.flow.BHB} ${r.v.BHB} mmol/L\u2069` : k === 'pH' ? `\u2066pH ${(+r.v.pH).toFixed(2)}\u2069` : `\u2068${L.flow[k]} ${r.v[k]}\u2069`).join(' · '));
+    const ix = S.res.indexOf(r), short = r.kind === 'ecg' ? '\u2066' + RV.ecgText(r.v, LANG === 'he').interp + '\u2069' : r.v.txt != null ? '' : (r.kind === 'poc' ? `${r.v.G} mg/dL` : RES_KEYS.filter(k => r.v[k] != null).map(k => k === 'BUN' ? `${L.flow.urea} ${Math.round(r.v.BUN * 2.14)}` : k === 'BHB' ? `\u2068${L.flow.BHB} ${r.v.BHB} mmol/L\u2069` : k === 'pH' ? `\u2066pH ${(+r.v.pH).toFixed(2)}\u2069` : `\u2068${L.flow[k]} ${r.v[k]}\u2069`).join(' · '));
     msg('lab', `${oname(r.kind)}${short ? ': ' + short : ` · ${L.ready}`}`, false, ix);
    // bedside tests are shown at the bedside, like the PALS printout
   }
   function once(key, cond, fn) { if (!S.fired[key] && cond) { S.fired[key] = true; fn(); } }
   function events() {
     const m = S.m, MS = L.msgs, t = m.t, clock = (C.startClock + t) % 1440;
+    if (S.autoSlow && t >= 30) { S.autoSlow = false; if (S.speed === 0.25) { S.speed = 1; renderClock(); msg('sys', L.msgs.speedUp); } }
     once('thirsty', t >= 300 && m.G > 200 && m.GCS >= 14, () => msg('nurse', MS.thirsty, true));
     if (LEVEL === 'guided' && m.inf.insulin > 0 && m.inf.insulin < 0.045 && m.ce < 0.2 && m.G > 300) { const os = m.mannitol.concat(m.hts).map(d => d.at).pop(); if (os != null && t - os > 120) once('insBack', true, () => msg('nurse', MS.insBack(m.inf.insulin, Math.round(m.G)), true)); }
     if (!S.flags.mon && t > 0 && t % 60 === 0 && !m.dead) msg('nurse', MS.vitals(m.HR, m.SBP, m.DBP, m.RR, m.SpO2));
@@ -610,7 +611,7 @@
     g.innerHTML = ITEMS[tab].map(it => `<button class="ritem k-${it.kind}" data-o="${it.o}" title="${esc(oname(it.o === 'bolusNS' || it.o === 'bolusLR' ? 'bolus' : it.o) + (it.o === 'bolusNS' ? ' · NaCl 0.9%' : it.o === 'bolusLR' ? ' · ' + L.fl.LR : ''))}" aria-label="${esc(oname(it.o === 'bolusNS' || it.o === 'bolusLR' ? 'bolus' : it.o) + (it.o === 'bolusNS' ? ' · NaCl 0.9%' : it.o === 'bolusLR' ? ' · ' + L.fl.LR : ''))}"><span class="rpic">${itemPic(it)}</span><span class="rlabel" dir="ltr" lang="en" style="--cap:${it.cap || '#9aa7ad'}"><b>${esc(it.name)}</b><i>${esc(it.conc)}</i>${it.pack ? `<i>${esc(it.pack)}</i>` : ''}</span>${LEVEL === 'guided' ? `<span class="rcap">${esc(oname(it.o === 'bolusNS' || it.o === 'bolusLR' ? 'bolus' : it.o))}</span>` : ''}</button>`).join('');
   }
   function onClick(e) {
-    const sp = e.target.closest('[data-sp]'); if (sp) { S.speed = +sp.dataset.sp; UI.Sound.ensure(); renderClock(); return; }
+    const sp = e.target.closest('[data-sp]'); if (sp) { S.autoSlow = false; S.speed = +sp.dataset.sp; UI.Sound.ensure(); renderClock(); return; }
     if (e.target.closest('[data-snd]')) { UI.sound = !UI.sound; e.target.closest('[data-snd]').textContent = UI.sound ? '🔊' : '🔇'; return; }
     const tb = e.target.closest('[data-tab]'); if (tb) { setTab(tb.dataset.tab); return; }
     if (e.target.closest('[data-home]')) { if (S && !S.ended) { const md = modal(`<p>${esc(L.leaveQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = ev => { if (ev.target.closest('[data-y]')) { md.close(); home(); } else if (ev.target.closest('[data-n]')) md.close(); }; } else home(); return; }
@@ -689,7 +690,7 @@
     const live = on && !m.dead;
     set('vHR', on ? (m.dead ? 0 : m.HR) : '--'); set('vSp', live ? m.SpO2 : '--'); set('vPR', live ? m.HR : '--'); set('vRR', live ? m.RR : '--'); set('vCO', on && m.vent && !m.dead ? Math.round(m.pCO2 - 3) : '--'); set('vT', on ? m.temp.toFixed(1) : '--');
     const nv = n.v;
-    set('vBP', !on ? '--' : n.busy ? String(n.cuff) : nv ? `${nv.s}/${nv.d}` : '--'); set('vMAP', on && nv && !n.busy ? `(${Math.round((nv.s + 2 * nv.d) / 3)})` : '');
+    set('vBP', !on || m.dead ? '--' : n.busy ? String(n.cuff) : nv ? `${nv.s}/${nv.d}` : '--'); set('vMAP', on && nv && !n.busy ? `(${Math.round((nv.s + 2 * nv.d) / 3)})` : '');
     $('#wBP').classList.toggle('meas', on && n.busy);
     set('nbpI', !on ? 'Auto 15 min' : n.busy ? (performance.now() - n.t0 < 3000 ? 'Inflating' : 'Measuring') : n.at ? `Auto 15 min · ${n.at}` : 'Auto 15 min'); set('nbpSt', n.busy ? 'CUFF' : 'START');
     /* alarms: limits only, like the bedside monitor */
@@ -1103,7 +1104,7 @@
     add('monitor', 4, (T('monitor') ?? S.flags.monAt ?? Infinity) <= 30, 'Full monitoring from the start (heart rhythm for potassium changes).', 'ניטור מלא מההתחלה (קצב הלב לשינויי אשלגן).', 'prot');
     why(`Monitor: ${at(T('monitor') ?? S.flags.monAt)}; target within 30 min.`, `מוניטור: ${at(T('monitor') ?? S.flags.monAt)}; יעד תוך 30 דק׳.`);
     add('labs0', 5, within('vbg', 30) || within('chem', 30) || within('abg', 30), 'First bloods within 30 min: gas with electrolytes and glucose (ketones were on the triage dipstick).', 'בדיקות ראשונות תוך 30 דקות: גזים עם אלקטרוליטים וסוכר (הקטונים כבר נמצאו במקלון בטריאז׳).', 'prot');
-    { const g = Math.min(...['vbg', 'chem'].map(T).filter(x => x != null), Infinity), k = Math.min(...['poc', 'bhb', 'ua'].map(T).filter(x => x != null), Infinity); why(`Gas/electrolytes: ${at(isFinite(g) ? g : null)}; glucose/ketones/urine: ${at(isFinite(k) ? k : null)}.`, `גזים/אלקטרוליטים: ${at(isFinite(g) ? g : null)}; סוכר/קטונים/שתן: ${at(isFinite(k) ? k : null)}.`); }
+    { const g = Math.min(...['vbg', 'chem'].map(T).filter(x => x != null), Infinity), k = Math.min(...['poc', 'bhb', 'ua'].map(T).filter(x => x != null), Infinity); why(`Gas with electrolytes and glucose: ${at(isFinite(g) ? g : null)}.`, `גזים עם אלקטרוליטים וסוכר: ${at(isFinite(g) ? g : null)}.`); }
     const attBefore = t => S.att.some(a => a <= t && a >= t - 30);
     /* was a potassium result (at least lo) back before time t? */
     const kKnownBy = (t, lo) => res.some(r => r.ready <= t && typeof r.v.K === 'number' && r.v.K >= lo);
@@ -1189,8 +1190,8 @@
       const insCut = lg.find(e => e.id === 'insDrip' && e.t >= c0 - 30 && e.t <= c0 + 180 && e.p.dose <= 0.03), attC = S.att.find(a => a >= c0 - 30 && a <= c0 + 180);
       const part = !osm ? 0 : (osm30 ? 0.55 : 0.3) + (cut ? 0.15 : 0) + (m.headUp && T('headUp') <= c0 + 45 ? 0.1 : 0) + (insCut ? (insCut.t <= c0 + 60 ? 0.1 : 0.05) : 0) + (attC != null ? (attC <= c0 + 45 ? 0.1 : 0.05) : 0);
       add('ce', 11, null, 'Cerebral edema (headache, vomiting, heart rate falling >20, drowsy): within 30 min mannitol 0.5–1 g/kg over 20 min (or NaCl 3% 5–10 mL/kg), cut fluids by a third, head up 30°, insulin 0.025 units/kg/h, call the attending; CT only after stabilizing.', 'בצקת מוחית (כאב ראש, הקאה, ירידת דופק מעל 20, ישנוניות): תוך 30 דקות מניטול 0.5–1 גר׳/ק״ג במשך 20 דקות (או NaCl 3% 5–10 מ״ל/ק״ג), הורדת נוזלים בשליש, ראש 30°, אינסולין 0.025 יח׳/ק״ג/שע׳, שיחה לכונן; CT רק אחרי ייצוב.', 'prot', part);
-      { const os = lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= (S.ceSignAt ?? c0) - 30), s0 = S.ceSignAt, cut0 = cut ? (he ? `; נוזלים ${before.rate}→${cut.p.rate} (−${Math.round(100 - 100 * cut.p.rate / before.rate)}%)` : `; fluids ${before.rate}→${cut.p.rate} (−${Math.round(100 - 100 * cut.p.rate / before.rate)}%)`) : (he ? '; הנוזלים לא הופחתו בשליש (תוך 45 דק׳ מהאבחנה או 30 מהטיפול האוסמוטי)' : '; fluids not cut by a third (within 45 min of the alarm or 30 of osmotherapy)'), ins0x = insCut ? (insCut.t <= c0 + 60 ? '' : (he ? `; האינסולין הופחת ל-0.025 באיחור (${at(insCut.t)})` : `; insulin lowered to 0.025 late (${at(insCut.t)})`)) : (he ? '; האינסולין לא הופחת ל-0.025' : '; insulin not lowered to 0.025'), att0 = attC != null ? (attC <= c0 + 45 ? '' : (he ? `; שיחה לכונן באיחור (${at(attC)})` : `; attending called late (${at(attC)})`)) : (he ? '; לא הייתה שיחה לכונן' : '; attending not called');
-        why(`First signs (headache/vomiting) ${at(s0)}${S.ceCritAt != null ? `; diagnostic sign (HR fall) ${at(S.ceCritAt)}` : ''}; osmotherapy ${os ? `${at(os.t)} = ${Math.round(os.t - c0)} min after ${S.ceCritAt != null ? 'the HR fall' : 'the first signs'}` : 'not given'}${cut0}${ins0x}${att0}.`, `סימנים ראשונים (כאב ראש/הקאה) ${at(s0)}${S.ceCritAt != null ? `; סימן אבחנתי (ירידת דופק) ${at(S.ceCritAt)}` : ''}; טיפול אוסמוטי ${os ? `${at(os.t)} = ${Math.round(os.t - c0)} דק׳ אחרי ${S.ceCritAt != null ? 'ירידת הדופק' : 'הסימנים הראשונים'}` : 'לא ניתן'}${cut0}${ins0x}${att0}.`); }
+      { const ventAt0 = S.flags.intubAt != null && S.flags.intubAt <= (S.ceSignAt ?? c0), os = lg.find(e => (e.id === 'mannitol' || e.id === 'hts') && e.t >= (S.ceSignAt ?? c0) - 30), s0 = S.ceSignAt, cut0 = cut ? (he ? `; נוזלים ${before.rate}→${cut.p.rate} (−${Math.round(100 - 100 * cut.p.rate / before.rate)}%)` : `; fluids ${before.rate}→${cut.p.rate} (−${Math.round(100 - 100 * cut.p.rate / before.rate)}%)`) : (he ? '; הנוזלים לא הופחתו בשליש (תוך 45 דק׳ מהאבחנה או 30 מהטיפול האוסמוטי)' : '; fluids not cut by a third (within 45 min of the alarm or 30 of osmotherapy)'), ins0x = insCut ? (insCut.t <= c0 + 60 ? '' : (he ? `; האינסולין הופחת ל-0.025 באיחור (${at(insCut.t)})` : `; insulin lowered to 0.025 late (${at(insCut.t)})`)) : (he ? '; האינסולין לא הופחת ל-0.025' : '; insulin not lowered to 0.025'), att0 = attC != null ? (attC <= c0 + 45 ? '' : (he ? `; שיחה לכונן באיחור (${at(attC)})` : `; attending called late (${at(attC)})`)) : (he ? '; לא הייתה שיחה לכונן' : '; attending not called');
+        why(`First signs (${ventAt0 ? 'HR fall, BP rise' : 'headache/vomiting'}) ${at(s0)}${S.ceCritAt != null && S.ceCritAt !== s0 ? `; diagnostic sign (HR fall) ${at(S.ceCritAt)}` : ''}; osmotherapy ${os ? `${at(os.t)} = ${Math.round(os.t - c0)} min after ${S.ceCritAt != null ? 'the HR fall' : 'the first signs'}` : 'not given'}${cut0}${ins0x}${att0}.`, `סימנים ראשונים (${ventAt0 ? 'ירידת דופק, עליית ל״ד' : 'כאב ראש/הקאה'}) ${at(s0)}${S.ceCritAt != null && S.ceCritAt !== s0 ? `; סימן אבחנתי (ירידת דופק) ${at(S.ceCritAt)}` : ''}; טיפול אוסמוטי ${os ? `${at(os.t)} = ${Math.round(os.t - c0)} דק׳ אחרי ${S.ceCritAt != null ? 'ירידת הדופק' : 'הסימנים הראשונים'}` : 'לא ניתן'}${cut0}${ins0x}${att0}.`); }
     }
     const sc = lg.find(e => e.id === 'scRapid'), clock = t => (C.startClock + t) % 1440;
     { const off = Math.max(firstT('scRapid') ?? -1, firstT('stopDrip') ?? -1);
@@ -1304,7 +1305,7 @@
       ${timelineHTML(TLE)}
       <div class="row"><button class="btn primary" data-again>${esc(L.again)}</button><button class="btn ghost" data-home2>${esc(L.home)}</button><button class="btn ghost" data-lang>${esc(L.lang)}</button><button class="btn ghost" data-chart>${esc(L.toChart)}</button></div>`, 'wide');
     md.el.addEventListener('click', e => { const tc = e.target.closest('[data-tlc]'); if (tc) { tc.classList.toggle('on'); $('.tl', md.el).classList.toggle('h-' + tc.dataset.tlc, !tc.classList.contains('on')); return; } });
-    md.el.addEventListener('click', e => { if (e.target.closest('[data-chart]')) { md.close(); const b = document.createElement('button'); b.className = 'btn primary redeb'; b.textContent = L.debrief; b.onclick = () => { b.remove(); S.ended = false; endCase(); }; document.body.appendChild(b); return; } if (e.target.closest('[data-again]')) { md.close(); briefing(); } else if (e.target.closest('[data-home2]')) { md.close(); home(); } });
+    md.el.addEventListener('click', e => { if (e.target.closest('[data-chart]')) { md.close(); const b = document.createElement('button'); b.className = 'btn primary redeb'; b.textContent = L.debrief; b.onclick = () => { b.remove(); S.ended = false; endCase(); }; document.body.appendChild(b); return; } if (e.target.closest('[data-again]')) { md.close(); home(); briefing(); } else if (e.target.closest('[data-home2]')) { md.close(); home(); } });
   }
 
   /* test hook (?debug) */
