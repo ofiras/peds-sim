@@ -256,6 +256,7 @@
       : LEVEL === 'guided' && id === 'ct' && m.ce < 0.2 && S.ceSignAt == null && m.GCS >= 14 ? 'ctNoSigns'
       : LEVEL === 'guided' && id === 'ct' && m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120) ? 'ctEarly'
       : LEVEL === 'guided' && id === 'main' && +p.rate > mt2 ? 'fluidsHigh'
+      : id === 'main' && +p.kcl === 0 && m.inf.insulin > 0 && kLastV != null && kLastV < 5.5 && m.inf.main.kcl > 0 ? 'noKbag'
       : LEVEL === 'guided' && id === 'insDrip' && !m.inf.insulin && !did('insDrip') && (() => { const f0 = S.log.find(e => e.id === 'bolus' || e.id === 'main'); return !f0 || now() - f0.t < 50; })() ? 'insEarly'
       : id === 'bolus' && m.inf.boluses.some(b => b.left > 1) ? 'bolusRunning'
       : (id === 'insDrip' && !m.inf.insulin || id === 'insBolus' || id === 'bicarb' || id === 'main' && +p.kcl > 0 && !m.inf.main.kcl) && !kKnown && !p.okK ? 'noK'
@@ -266,9 +267,9 @@
       : LABS.includes(id) && !p.freq && !['poc', 'bhb', 'vbg', 'abg', 'ecg'].includes(id) && S.res.some(r => r.kind === id && now() - r.drawn < 60) ? 'dupLab'
       : LEVEL === 'guided' && (id === 'insBolus' || id === 'bicarb') ? id : null;
     const lastLab = S.res.filter(r => r.kind === id).pop();
-    const dynText = { ctEarly: L.msgs.ctEarly, noK: L.msgs.noK, ins01: L.msgs.ins01(p.dose), fluidsHigh: L.msgs.fluidsHigh(Math.round(mt2 / 1.1)), scQuery: L.msgs.scQuery(m.vent ? L.msgs.why.vent : m.GCS < 14 ? L.msgs.why.drowsy : m.G < 120 ? L.msgs.why.lowG(Math.round(m.G)) + ' ' + L.msgs.why.lowGHint : vomited ? L.msgs.why.vomit : L.msgs.why.acid), bolusRunning: L.msgs.bolusRunning, insEarly: L.msgs.insEarly, insHigh: L.msgs.insHigh(p.dose), basalTime: L.msgs.basalTime, ioNoNeed: L.msgs.ioNoNeed, alineED: L.msgs.alineED, wardK: L.msgs.wardObj(wardWhy.join('; ')), dupLab: lastLab && L.msgs.dupLab(oname(id), Math.round(now() - lastLab.drawn)) }[dyn];
+    const dynText = { ctEarly: L.msgs.ctEarly, noK: L.msgs.noK, ins01: L.msgs.ins01(p.dose), fluidsHigh: L.msgs.fluidsHigh(Math.round(mt2 / 1.1)), scQuery: L.msgs.scQuery(m.vent ? L.msgs.why.vent : m.GCS < 14 ? L.msgs.why.drowsy : m.G < 120 ? L.msgs.why.lowG(Math.round(m.G)) + ' ' + L.msgs.why.lowGHint : vomited ? L.msgs.why.vomit : L.msgs.why.acid), bolusRunning: L.msgs.bolusRunning, noKbag: L.msgs.noKbag(kLastV), insEarly: L.msgs.insEarly, insHigh: L.msgs.insHigh(p.dose), basalTime: L.msgs.basalTime, ioNoNeed: L.msgs.ioNoNeed, alineED: L.msgs.alineED, wardK: L.msgs.wardObj(wardWhy.join('; ')), dupLab: lastLab && L.msgs.dupLab(oname(id), Math.round(now() - lastLab.drawn)) }[dyn];
     /* the attending steps in only at the guided level; the nurse's checks and the ward's limits apply at every level */
-    const nurseQ = ['noK', 'ins01', 'scQuery', 'dupLab', 'bolusRunning', 'basalTime'].includes(dyn), attOK = LEVEL === 'guided' || dyn === 'wardK';
+    const nurseQ = ['noK', 'ins01', 'scQuery', 'dupLab', 'bolusRunning', 'basalTime', 'noKbag'].includes(dyn), attOK = LEVEL === 'guided' || dyn === 'wardK';
     if (dyn && dynText && !p.force && (nurseQ || attOK)) return objection(id, dyn === 'noK' ? Object.assign({}, p, { okK: true }) : p, dynText, nurseQ ? 'nurse' : 'att', dyn === 'noK', dyn);
     if (dyn && W[dyn] && !p.force && attOK) return objection(id, p, W[dyn]);
     if (wk && W[wk] && !p.force && LEVEL === 'guided') {
@@ -277,7 +278,7 @@
       return objection(id, p, W[wk]);
     }
     if (ONCE.includes(id) && onceDone(id)) { msg('sys', L.already(oname(id))); return; }
-    if (id === 'ct' && Object.entries(S.procs).some(([k, v]) => v != null && v > now())) { msg('nurse', L.msgs.ctWait(oname(Object.entries(S.procs).find(([k, v]) => v != null && v > now())[0]))); return; }
+    if (id === 'ct' && Object.entries(S.procs).some(([k, v]) => v != null && v > now())) { (S.pendProc = S.pendProc || []).push([id, p]); msg('nurse', L.msgs.ctWait(oname(Object.entries(S.procs).find(([k, v]) => v != null && v > now())[0]))); return; }
     if ((PROC[id] || ['usabd', 'cxr', 'examQ', 'weigh', 'po'].includes(id)) && S.flags.ctUntil > now()) { msg('nurse', L.msgs.inCT); return; }
     /* procedures take time and are done once; physician procedures are yours, nursing ones the nurse's */
     const PR = PROC[id];
@@ -311,7 +312,7 @@
       case 'ct': S.flags.ctUntil = now() + 25; S.later.push({ t: now() + 25, kind: 'nurse', text: MS.ctBack }); msg('nurse', L.msgs.ctGo + (S.flags.mon ? ' ' + L.msgs.ctGoMon : '')); if (m.ce > 0.3 && !(m.mannitol.concat(m.hts)).some(d => now() - d.at < 120)) S.log[S.log.length - 1].early = true; msg('nurse', L.imgOrdered(oname('ct'))); addResult('ct', now() + LAB_DELAY.ct, { txt: m.ce > 0.2 ? MS.ctDone : MS.ctNormal }); break;
       case 'cxr': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'טכניקה: צילום חזה AP בשכיבה.\nממצאים: שדות ריאה נקיים, ללא תסנינים, ללא נוזל פלאורלי וללא חזה אוויר. צל לב ומצר בגודל תקין.\nסיכום: צילום חזה תקין.' : 'Technique: supine AP chest radiograph.\nFindings: clear lung fields; no consolidation, effusion or pneumothorax. Normal cardiomediastinal silhouette.\nImpression: normal chest radiograph.' }); break;
       case 'usabd': msg('nurse', L.imgOrdered(oname(id))); addResult(id, now() + LAB_DELAY[id], { txt: LANG === 'he' ? 'טכניקה: US בטן מלאה.\nממצאים: כבד, טחול, לבלב וכליות בגודל ובמבנה תקינים. ללא נוזל חופשי. התוספתן לא הודגם; ללא סימנים עקיפים לדלקת.\nסיכום: ללא ממצא חריג.' : 'Technique: complete abdominal ultrasound.\nFindings: normal liver, spleen, pancreas and kidneys. No free fluid. Appendix not seen; no indirect signs of inflammation.\nImpression: no abnormal findings.' }); break;
-      case 'bolus': if (p.mlkg * w / Math.max(5, p.over) > 40) msg('nurse', MS.bolusCap(Math.ceil(p.mlkg * w / 40))); m.inf.boluses.push({ fluid: p.fluid, left: p.mlkg * w, mlMin: Math.min(40, p.mlkg * w / Math.max(5, p.over)) }); msg('nurse', `${oname(id)}: ${L.fl[p.fluid]} · \u2068${Math.round(p.mlkg * w)} ${L.ml}\u2069 / \u2068${p.over} ${L.min}\u2069`); break;
+      case 'bolus': if (p.mlkg * w / Math.max(5, p.over) > 40) msg('nurse', MS.bolusCap(Math.ceil(p.mlkg * w / 40))); m.inf.boluses.push({ fluid: p.fluid, left: p.mlkg * w, mlMin: Math.min(40, p.mlkg * w / Math.max(5, p.over)) }); msg('nurse', `${oname(id)}: ${L.fl[p.fluid]} · \u2068${Math.round(p.mlkg * w)} ${L.ml}\u2069 / \u2068${Math.max(+p.over, Math.ceil(p.mlkg * w / 40))} ${L.min}\u2069`); break;
       case 'main': m.inf.main = { base: p.base, dex: +p.dex, kcl: +p.kcl, rate: +p.rate }; S.mainHist = (S.mainHist || []).concat({ t: now(), rate: +p.rate }); msg('nurse', `${oname(id)}: ${L.fl[p.base]}${+p.dex ? ` + D${p.dex}%` : ''}${+p.kcl ? ` + KCl ${p.kcl}` : ''} · ${p.rate} ${L.mlh}`); break;
       case 'insDrip': m.inf.insulin = +p.dose; msg('nurse', `${oname(id)}: ${p.dose} ${L.f.ukgh} = ${r1(p.dose * w)} ${L.uh}`); break;
       case 'insBolus': m.Ibol = (m.Ibol || 0) + (+p.dose || 0.1); m.ceRisk += 1.5; msg('nurse', `${MS.insBolus} (${r1((+p.dose || 0.1) * w)} ${L.u})`); break;
@@ -369,6 +370,7 @@
       if (!S.flags.mon) { S.flags.mon = true; S.flags.monAt = now(); msg('nurse', L.msgs.monVent); }
     }
     else msg(PR.by === 'md' ? 'you' : 'nurse', id === 'iv' ? L.msgs.ivIn : L.youDone(oname(id)));
+    if (S.pendProc && S.pendProc.length && !Object.values(S.procs).some(v => v != null && v > now())) { const q = S.pendProc; S.pendProc = []; q.forEach(([k, pp]) => order(k, pp)); }
     if ((id === 'iv' || id === 'io_access') && S.pendIV && S.pendIV.length) { const q = S.pendIV; S.pendIV = []; q.forEach(([k, pp]) => order(k, pp)); }
     if (id === 'lp') addResult('csf', now() + 45, { txt: he ? `נוזל שדרה: לחץ פתיחה ${Math.round(14 + 30 * Math.max(0, m.ce - 0.15))} ס״מ מים. צלול. תאים ⁦2/µL⁩, חלבון 25 מ״ג/ד״ל, גלוקוז ${Math.round(m.G * 0.6)} מ״ג/ד״ל (כ-60% מהסוכר בדם, תקין). צביעת גראם: ללא חיידקים.` : `CSF: opening pressure ${Math.round(14 + 30 * Math.max(0, m.ce - 0.15))} cmH₂O. Clear. Cells 2/µL, protein 25 mg/dL, glucose ${Math.round(m.G * 0.6)} mg/dL (about 60% of blood glucose, normal). Gram stain: no organisms.` }, now());
     renderStatus(); renderSitu();
@@ -476,7 +478,7 @@
       if (m.K > 6.5) once('kHigh', true, () => msg('nurse', MS.kHigh, true));
       if (m.K < 2.5) once('kVeryLow' + Math.floor(t / 60), true, () => msg('nurse', MS.kVeryLow, true));
     }
-    if (m.G < 70) once('hypo' + Math.floor(t / (m.G < 60 ? 15 : 30)), true, () => msg('nurse', (m.vent || m.GCS < 9 ? MS.hypoComa : m.G >= 55 && m.GCS >= 15 ? MS.hypoMild : MS.hypo)(Math.round(m.G)) + (LEVEL === 'guided' && m.G < 60 ? ' ' + MS.hHypo : ''), true));
+    if (m.G < 70) once('hypo' + Math.floor(t / (m.G < 60 ? 15 : 30)), true, () => (addResult('poc', t, { G: Math.round(m.G) }, t, true), msg)('nurse', (m.vent || m.GCS < 9 ? MS.hypoComa : m.G >= 55 && m.GCS >= 15 ? MS.hypoMild : MS.hypo)(Math.round(m.G)) + (LEVEL === 'guided' && m.G < 60 ? ' ' + MS.hHypo : ''), true));
     if (m.G < 60) { S.lowGMin = (S.lowGMin || 0) + 1; if (S.lowGMin >= (m.inf.insulin > 0 ? 10 : 15)) once('hypoAtt', true, () => msg('att', MS.attHypo, true)); } else S.lowGMin = 0;
     if (m.G < 40 && !m.vent && t - (S.lastSz ?? -99) >= 30) { S.lastSz = t; msg('nurse', MS.seizure(Math.round(m.G)), true); }
     /* while the brain is swelling: new calls on a further HR fall or a GCS drop, and every 30 min if it is left untreated */
