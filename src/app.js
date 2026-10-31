@@ -781,22 +781,42 @@
   };
   const MU = { mlkg: ['ml', 'ml/kg'], gkg: ['g', 'g/kg'], meqkg: ['mEq', 'mEq/kg'], mmolkg: ['mmol', 'mmol/kg'], mgkg: ['mg', 'mg/kg'] };
   const DIL = { insDrip: 'INSULIN REGULAR 10 units in 100 ml NaCl 0.9% (0.1 units/ml). Flush the line with 20 ml first.', insBolus: 'Not given as a bolus in DKA.', mannitol: 'Mannitol 20% undiluted, through a filter, over 20 min.', hts: 'NaCl 3% undiluted.', kphos: 'Dilute in D5W; max 0.06 mmol/kg/h.', cagluc: 'Dilute 1:1, slowly over 10 min, on a monitor.', bicarb: 'Dilute 1:1 with sterile water; never with calcium.', paracet: 'Undiluted over 15 min.', ceftriax: 'Reconstitute; IV over 30 min.', main: 'KCl 14.9% concentrate goes into the bag (max 60 mEq/L peripheral). Never as a push.' };
+  /* nothing is filled in for the resident. At the guided level a hint shows only when the order is outside the usual range */
+  const RANGE = { dexBolus: [2, 5], prbc: [10, 15], ffp: [10, 15], plt: [10, 15], albumin: [10, 20], mannitol: [0.5, 1], hts: [2.5, 10], bicarb: [1, 2], kpo: [0.5, 1], kphos: [0.1, 0.3], cagluc: [0.5, 1], ondan: [0.1, 0.15, 8], paracet: [10, 15, 1000], morphine: [0.05, 0.1, 5], midaz: [0.05, 0.1, 5], ceftriax: [50, 100, 4000] };
+  const ceNow = () => S.ceSignAt != null && now() - S.ceSignAt < 360;
+  const out = (v, lo, hi) => v < lo * 0.99 || v > hi * 1.01;
+  function doseHint(id, pk, over) {
+    if (LEVEL !== 'guided' || !(pk > 0)) return '';
+    if (id === 'bolus') return pk > 10 || pk < 5 || (over != null && over !== '' && +over < 30) ? (CT().warn || {}).bolusFast || '' : '';
+    if (id === 'insDrip') return out(pk, 0.02, ceNow() ? 0.05 : 0.1) ? (ceNow() ? L.help.insCE : L.help.insProt) : '';
+    if (id === 'insBolus') return L.help.insBol;
+    if (id === 'scRapid' || id === 'scBasal') return out(pk, id === 'scRapid' ? 0.1 : 0.15, id === 'scRapid' ? 0.2 : 0.4) ? L.help[id] : '';
+    const r = RANGE[id], u = MU[MED[id].k]; if (!r) return '';
+    return out(pk, r[0], r[1]) || (r[2] && pk * dw() > r[2] * 1.01) ? L.help.chk(r[0], r[1], u[1], r[2] && `${r[2]} ${u[0]}`) : '';
+  }
+  function fluidHint(rate, dex, kcl) {
+    if (LEVEL !== 'guided') return '';
+    const mt = M.maint(dw()), ce = ceNow(), last = k => ((S.res.filter(r => r.ready <= now() && typeof (r.v || {})[k] === 'number').pop() || {}).v || {})[k], G = last('G'), K = last('K'), t = [];
+    if (rate !== '' && rate != null && out(+rate, (ce ? 0.9 : 1.4) * mt, (ce ? 1.5 : 2.1) * mt)) t.push((S.flags.weighed ? '' : L.help.byHist) + L.help.maint(Math.round(mt), 0, Math.round(1.5 * mt), Math.round(2 * mt)) + (ce ? ' ' + L.help.fluidCE : ''));
+    if (K == null && kcl > 0) t.push(L.help.kWait);
+    else if ((G != null && dex < (G < 180 ? 10 : G < 300 ? 5 : 0)) || (K != null && (K > 5.5 ? kcl > 0 : K < 3.5 ? kcl < 40 : kcl < 20 || kcl > 40))) t.push(L.help.dexK);
+    return t.join(' ');
+  }
   function medForm(id, preset, btn) {
     const m = S.m, w = dw(), g = LEVEL === 'guided', he = LANG === 'he', D = MED[id], cont = !!D.cont;
     const cur = id === 'main' && m.inf.main.rate ? Object.assign({}, m.inf.main) : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : Object.assign({}, preset);
-    const def = (FORMS[id] || []).reduce((a, [k, , d]) => (a[k] = d, a), {});
     const unitsOf = () => id === 'insDrip' ? ['units/h', 'units/kg/h'] : D.k === 'dose' ? ['units', 'units/kg'] : MU[D.k];
     let perKg = !!D.kgFirst;
-    const doseV = () => { const pk = cur[D.k] ?? (g ? def[D.k] : ''); return pk === '' || pk == null ? '' : perKg ? pk : id === 'scBasal' ? Math.round(pk * w) : ['scRapid', 'insBolus'].includes(id) ? Math.ceil(pk * w * 2) / 2 : r1(pk * w); };
+    const doseV = () => { const pk = cur[D.k] ?? ''; return pk === '' || pk == null ? '' : perKg ? pk : id === 'scBasal' ? Math.round(pk * w) : ['scRapid', 'insBolus'].includes(id) ? Math.ceil(pk * w * 2) / 2 : r1(pk * w); };
     const sel = (n, opts, v, lab) => `<select name="${n}">${opts.map(o => `<option value="${o}"${String(v) === String(o) ? ' selected' : ''}>${esc(lab ? lab(o) : o)}</option>`).join('')}</select>`;
     const date = caseDate(now()), route = D.route || 'I.V';
     const card = id === 'main'
       ? `<div class="mo-drug"><b>inf ${sel('base', ['NS', 'HALF', 'LR'], cur.base || 'NS', v => ({ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' })[v])} + ${sel('dex', [0, 5, 10, 12.5], cur.dex ?? 0, v => v ? `DEXTROSE ${v}%` : 'NO DEXTROSE')} inf bag</b>
           <div class="mo-add">+ amp POTASSIUM CHLORIDE (KCL) 14.9% amp ${sel('kcl', [0, 20, 40, 60], cur.kcl ?? 0)} <span>mEq/L</span></div>
           <div class="mo-dose"><span>Rate:</span><input name="rate" type="number" step="any" inputmode="decimal" value="${cur.rate ?? ''}"><span class="mo-u">ml/hr</span></div></div>`
-      : `<div class="mo-drug"><b>${esc(D.cat(Object.assign({}, def, cur)))}</b>${id === 'bolus' ? `<div class="mo-add">${sel('fluid', ['NS', 'LR'], cur.fluid || 'NS', v => ({ NS: 'SODIUM CHLORIDE 0.9%', LR: 'RINGER LACTATE' })[v])}</div>` : ''}
+      : `<div class="mo-drug"><b>${esc(D.cat(cur))}</b>${id === 'bolus' ? `<div class="mo-add">${sel('fluid', ['NS', 'LR'], cur.fluid || 'NS', v => ({ NS: 'SODIUM CHLORIDE 0.9%', LR: 'RINGER LACTATE' })[v])}</div>` : ''}
           <div class="mo-dose"><span>${id === 'bolus' || D.k === 'mlkg' ? 'Volume:' : 'Dose:'}</span><input name="dv" type="number" step="any" inputmode="decimal" value="${doseV()}"><select name="du" class="mo-u">${unitsOf().map((u, i) => `<option value="${i}"${+perKg === i ? ' selected' : ''}>${u}</option>`).join('')}</select><button type="button" class="mo-sw" data-sw title="${he ? 'סה״כ / לק״ג' : 'Total / per kg'}">⟷</button></div>
-          ${D.over ? `<div class="mo-dose"><span>Infuse over:</span><input name="over" type="number" step="any" inputmode="decimal" value="${cur.over ?? def.over ?? ''}"><span class="mo-u">min</span></div>` : ''}</div>`;
+          ${D.over ? `<div class="mo-dose"><span>Infuse over:</span><input name="over" type="number" step="any" inputmode="decimal" value="${cur.over ?? ''}"><span class="mo-u">min</span></div>` : ''}</div>`;
     const curOrders = [m.inf.main.rate && `inf ${{ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' }[m.inf.main.base]}${m.inf.main.dex ? '+DEXTROSE ' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCL ' + m.inf.main.kcl + ' mEq/L' : ''} Rate: ${m.inf.main.rate}ml/hr CONTINUOUS`,
       m.inf.insulin && `inf INSULIN REGULAR ${m.inf.insulin} units/kg/h (${r1(m.inf.insulin * w)} units/h) CONTINUOUS`,
       ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`), ...(S.pendIV || []).filter(([k]) => MED[k]).map(([k]) => `${oname(k)} · ${L.msgs.waitIV}`)].filter(Boolean);
@@ -825,17 +845,17 @@
     const f = $('form', md.el), h = $('#hlp', md.el), mt = M.maint(w); h.dir = LANG === 'he' ? 'rtl' : 'ltr';
     const total = () => { const v = +f.dv.value; return f.dv.value === '' ? null : perKg ? v * w : v; };
     const live = () => {
-      h.classList.remove('warn'); let t = '';
-      if (id === 'main') t = g ? (S.flags.weighed ? '' : L.help.byHist) + L.help.maint(Math.round(mt), 0, Math.round(1.5 * mt), Math.round(2 * mt)) + ' ' + L.help.dexK + (S.ceSignAt != null && now() - S.ceSignAt < 360 ? ' ' + L.help.fluidCE : '') : '';
-      else if (total() != null && g && id === 'insDrip') t = (S.ceSignAt != null && now() - S.ceSignAt < 360 ? L.help.insCE : L.help.insProt) + ' ' + L.help.ins(r1(total()), r1(total() * 10));
-      else if (total() != null && g && id !== 'insDrip') {
+      h.classList.remove('warn'); let t = '', x = '';
+      if (id === 'main') x = fluidHint(f.rate.value, +f.dex.value, +f.kcl.value);
+      else if (total() != null && g) {
         const u = unitsOf(), tv = total();
         t = '\u2066' + (perKg ? `= ${+tv.toFixed(2)} ${u[0]}` : `= ${+(tv / w).toFixed(3)} ${u[1]}`);
         t += ` (${wtTxt} kg${S.flags.weighed ? '' : he ? ', לפי המשקל הידוע' : ', weight on file'})\u2069`;
-        if (g && id === 'insDrip') t = (S.ceSignAt != null && now() - S.ceSignAt < 360 ? L.help.insCE : L.help.insProt) + ' ' + L.help.ins(r1(perKg ? +f.dv.value * w : +f.dv.value), r1((perKg ? +f.dv.value * w : +f.dv.value) * 10));
-        if (g && id === 'mannitol') t += ' · ' + L.help.man(Math.round(tv * 5));
-        if (g && (id === 'scRapid' || id === 'scBasal')) t += ' · ' + L.help[id];
+        if (id === 'insDrip') t += ' · ' + L.help.ins(r1(tv), r1(tv * 10));
+        if (id === 'mannitol') t += ' · ' + L.help.man(Math.round(tv * 5));
+        x = doseHint(id, tv / w, D.over ? f.over.value : null);
       }
+      if (x) { t += (t ? ' · ' : '') + x; h.classList.add('warn'); }
       h.textContent = t;
     };
     f.addEventListener('input', live); live();
@@ -870,10 +890,9 @@
   function picuForm(id, preset, btn) {
     const m = S.m, w = dw(), g = LEVEL === 'guided', D = MED[id], N = PVN[id], cont = !!D.cont, BAG = 500, INS = [10, 100];
     const cur = id === 'main' && m.inf.main.rate ? Object.assign({}, m.inf.main) : id === 'insDrip' && m.inf.insulin ? { dose: m.inf.insulin } : Object.assign({}, preset);
-    const def = (FORMS[id] || []).reduce((a, [k, , d]) => (a[k] = d, a), {});
     const unitsOf = () => id === 'insDrip' ? ['units/hr', 'units/kg/hr'] : D.k === 'dose' ? ['units', 'units/kg'] : MU[D.k].map(u => u.replace('ml', 'mL'));
     let perKg = !!D.kgFirst;
-    const pk0 = cur[D.k] ?? (g ? def[D.k] : ''), doseV = pk0 === '' || pk0 == null ? '' : perKg ? pk0 : id === 'scBasal' ? Math.round(pk0 * w) : ['scRapid', 'insBolus'].includes(id) ? Math.ceil(pk0 * w * 2) / 2 : +(pk0 * w).toFixed(2);
+    const pk0 = cur[D.k] ?? '', doseV = pk0 === '' || pk0 == null ? '' : perKg ? pk0 : id === 'scBasal' ? Math.round(pk0 * w) : ['scRapid', 'insBolus'].includes(id) ? Math.ceil(pk0 * w * 2) / 2 : +(pk0 * w).toFixed(2);
     const sel = (n, opts, v) => `<select name="${n}">${opts.map(([val, t]) => `<option value="${val}"${String(v) === String(val) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
     const d = caseDate(now()), lock = '<i class="pv-lk">🔒</i>', dd = '<span class="pv-dd">▾</span>';
     const solvI = Math.max(0, SOLV.findIndex(x => x[0] === (cur.base || 'NS') && x[1] === (+cur.dex || 0)));
@@ -889,7 +908,7 @@
     } else {
       const name = id === 'bolus' ? sel('fluid', [['NS', 'NaCl 0.9%'], ['LR', 'Ringer Lactate']], cur.fluid || 'NS') : esc(N[0]);
       rows = `<tr class="on"><td>${id === 'bolus' ? '<span class="pv-sv">ממס</span>' : ''}${name}</td><td class="pv-ic">⚗ ▾ ⏱</td><td><span class="pv-in"><input name="dv" type="number" step="any" inputmode="decimal" value="${doseV}">${sel('du', unitsOf().map((u, i) => [i, u]), +perKg)}</span></td><td>--</td><td>${lock}</td><td class="pv-x">✕</td></tr>`;
-      rateRow = `<label>קצב מנה ${lock}<input disabled></label><label>קצב כולל ${lock}<input disabled></label><label>סה״כ כמות ${lock}<input id="pvTot" disabled dir="ltr"></label><label>לתת במשך ${lock}<span class="pv-in"><input name="over" type="number" step="any" inputmode="decimal" value="${D.over ? cur.over ?? def.over ?? '' : id === 'mannitol' ? 20 : id === 'hts' ? 30 : ''}"${D.over ? '' : ' disabled'}><em>${D.over || id === 'mannitol' || id === 'hts' ? 'min' : ''}</em></span></label>`;
+      rateRow = `<label>קצב מנה ${lock}<input disabled></label><label>קצב כולל ${lock}<input disabled></label><label>סה״כ כמות ${lock}<input id="pvTot" disabled dir="ltr"></label><label>לתת במשך ${lock}<span class="pv-in"><input name="over" type="number" step="any" inputmode="decimal" value="${D.over ? cur.over ?? '' : ''}"${D.over ? '' : ' disabled'}><em>${D.over || id === 'mannitol' || id === 'hts' ? 'min' : ''}</em></span></label>`;
     }
     const md = modal(`<div class="pv" dir="rtl"><div class="pv-title"><span>👤 צור הוראה עבור: <b>ישראלי ישראל, מספר אשפוז ${RV.admNo(Math.floor(S.date0 / 86400000) % 997)}</b></span><button type="button" class="pv-xx" data-x aria-label="${esc(L.back)}">✕</button></div>
       <div class="pv-ban"><span class="pv-al">לא ידועה רגישות לתרופות</span><span>${m.age}Y</span><span>משקל לתרופות: ${w} Kg</span><span class="pv-tabs"><b>מידע נוסף</b><b>אלרגיות</b></span></div>
@@ -908,14 +927,14 @@
     const total = () => f.dv && f.dv.value !== '' ? (perKg ? +f.dv.value * w : +f.dv.value) : null;
     const live = () => {
       h.classList.remove('warn'); let t = '';
-      if (id === 'main') { const k = f.kmeq.value === '' ? 0 : +f.kmeq.value; $('#pvConc', md.el).textContent = k ? `${+(k / BAG).toFixed(3)} mEq / mL` : '--'; t = `KCl ${Math.round(k * 1000 / BAG)} mEq/L`; if (g) t += ' · ' + (S.flags.weighed ? '' : L.help.byHist) + L.help.maint(Math.round(M.maint(w)), 0, Math.round(1.5 * M.maint(w)), Math.round(2 * M.maint(w))) + ' ' + L.help.dexK + (S.ceSignAt != null && now() - S.ceSignAt < 360 ? ' ' + L.help.fluidCE : ''); }
+      if (id === 'main') { const k = f.kmeq.value === '' ? 0 : +f.kmeq.value; $('#pvConc', md.el).textContent = k ? `${+(k / BAG).toFixed(3)} mEq / mL` : '--'; t = `KCl ${Math.round(k * 1000 / BAG)} mEq/L`; const x = fluidHint(f.rate.value, SOLV[+f.solv.value][1], Math.round(k * 1000 / BAG)); if (x) { t += ' · ' + x; h.classList.add('warn'); } }
       else if (total() != null) {
         const u = unitsOf(), tv = total();
         t = g ? '\u2066' + (perKg ? `= ${+tv.toFixed(2)} ${u[0]}` : `= ${+(tv / w).toFixed(3)} ${u[1]}`) + '\u2069' : '';
-        if (id === 'insDrip') { $('#pvTot', md.el).value = `${+(tv * INS[1] / INS[0]).toFixed(1)} mL/hr`; if (g) t += ' · ' + (S.ceSignAt != null && now() - S.ceSignAt < 360 ? L.help.insCE : L.help.insProt); }
+        if (id === 'insDrip') $('#pvTot', md.el).value = `${+(tv * INS[1] / INS[0]).toFixed(1)} mL/hr`;
         else { const tot = $('#pvTot', md.el); if (tot) tot.value = `${+tv.toFixed(2)} ${u[0]}`; }
         if (g && id === 'mannitol') t += ' · ' + L.help.man(Math.round(tv * 5));
-        if (g && (id === 'scRapid' || id === 'scBasal')) t += ' · ' + L.help[id];
+        const x = doseHint(id, tv / w, D.over ? f.over.value : null); if (x) { t += (t ? ' · ' : '') + x; h.classList.add('warn'); }
       }
       h.textContent = t;
     };
@@ -952,21 +971,24 @@
   function ventLive(md, f) {
     const h = $('#hlp', md.el), w = dw(), tv = +f.tv.value, rr = +f.rr.value, last = S.res.filter(r => r.ready <= now() && typeof (r.v || {}).pCO2 === 'number').pop();
     let t = tv ? `TV ${Math.round(tv * w)} mL` : '';
-    if (LEVEL === 'guided') { t += (t ? ' · ' : '') + L.rsi.goal + (last ? ' ' + L.rsi.lastGas(last.v.pCO2, hhmm(C.startClock + last.drawn)) : ''); if (vExp(tv, rr)) t += ' · ' + L.rsi.expect(vExp(tv, rr)); }
-    h.textContent = t; h.classList.remove('warn');
+    const bad = LEVEL === 'guided' && tv && rr && (vExp(tv, rr) > S.m.pCO2tgt + 6 || out(tv, 6, 10));
+    if (bad) t += (t ? ' · ' : '') + L.rsi.goal + (last ? ' ' + L.rsi.lastGas(last.v.pCO2, hhmm(C.startClock + last.drawn)) : '') + ' ' + L.rsi.expect(vExp(tv, rr));
+    h.textContent = t; h.classList.toggle('warn', !!bad);
   }
   function intubForm(btn) {
-    const g = LEVEL === 'guided', w = dw(), opt = (grp, v) => Object.entries(RSI[grp]).map(([k, d]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(d[0])}${d[1] && LEVEL === 'guided' ? ` (${d[1]}–${d[2]} ${d[4]})` : ''}</option>`).join('');
+    const g = LEVEL === 'guided', w = dw(), opt = (grp, v) => Object.entries(RSI[grp]).map(([k, d]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(d[0])}</option>`).join('');
     const md = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname('intub'))}</h2><form class="oform">
       <h4 class="fh">${esc(L.rsi.ind)}</h4>
-      <div class="vgrid"><label>${esc(L.rsi.sed)}<select name="sed">${opt('sed', g ? 'ket' : '')}</select></label><label>${esc(L.f.dose)}<span class="inp"><input name="sedD" type="number" step="any" inputmode="decimal" value="${g ? 1.5 : ''}" dir="ltr"><small id="sedU">mg/kg</small></span></label>
-        <label>${esc(L.rsi.par)}<select name="par">${opt('par', g ? 'roc' : '')}</select></label><label>${esc(L.f.dose)}<span class="inp"><input name="parD" type="number" step="any" inputmode="decimal" value="${g ? 1 : ''}" dir="ltr"><small id="parU">mg/kg</small></span></label></div>
-      <h4 class="fh">${esc(L.rsi.vent)}</h4>${ventFields(g ? { tv: 8, rr: Math.max(16, Math.min(45, Math.round(40 * 96 / (5.8 * S.m.pCO2tgt)))), peep: 5, fio2: 40 } : {})}
+      <div class="vgrid"><label>${esc(L.rsi.sed)}<select name="sed">${opt('sed', '')}</select></label><label>${esc(L.f.dose)}<span class="inp"><input name="sedD" type="number" step="any" inputmode="decimal" value="" dir="ltr"><small id="sedU">mg/kg</small></span></label>
+        <label>${esc(L.rsi.par)}<select name="par">${opt('par', '')}</select></label><label>${esc(L.f.dose)}<span class="inp"><input name="parD" type="number" step="any" inputmode="decimal" value="" dir="ltr"><small id="parU">mg/kg</small></span></label></div>
+      <h4 class="fh">${esc(L.rsi.vent)}</h4>${ventFields({})}
       <p class="rule" id="hlp"></p>
       <div class="row"><button class="btn primary" type="submit">${esc(L.order)}</button><button class="btn ghost" type="button" data-x>${esc(L.back)}</button></div></form>`);
     const f = $('form', md.el);
-    if (!g) { f.sed.insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>'); f.par.insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>'); }
-    const live = () => { $('#sedU', md.el).textContent = (RSI.sed[f.sed.value] || [])[4] || 'mg/kg'; $('#parU', md.el).textContent = f.par.value === 'none' ? '' : (RSI.par[f.par.value] || [])[4] || 'mg/kg'; ventLive(md, f); };
+    f.sed.insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>'); f.par.insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
+    const live = () => { $('#sedU', md.el).textContent = (RSI.sed[f.sed.value] || [])[4] || 'mg/kg'; $('#parU', md.el).textContent = f.par.value === 'none' ? '' : (RSI.par[f.par.value] || [])[4] || 'mg/kg'; ventLive(md, f);
+      const rh = g ? [['sed', f.sed.value, f.sedD.value], ['par', f.par.value, f.parD.value]].map(([gr, k, d]) => { const D = RSI[gr][k]; return D && D[1] && d !== '' && out(+d, D[1], D[2]) ? `${D[0]}: ${L.help.chk(D[1], D[2], D[4])}` : ''; }).filter(Boolean).join(' · ') : '';
+      if (rh) { const h = $('#hlp', md.el); h.textContent += (h.textContent ? ' · ' : '') + rh; h.classList.add('warn'); } };
     f.addEventListener('input', live); f.addEventListener('change', live); live();
     md.el.addEventListener('click', e => { if (e.target.closest('[data-x]')) md.close(); });
     f.addEventListener('submit', e => {
