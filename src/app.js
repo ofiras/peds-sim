@@ -73,7 +73,6 @@
     ],
     lab: [
       { o: 'poc', kind: 'gluco', name: 'GLUCO­METER', conc: 'point of care', pack: '' },
-      { o: 'labSet', kind: 'tubes', name: 'DKA ORDER SET', conc: 'glucose q1h · gas + lytes q2h · chem q4h', pack: 'ketones · CBC · urine · ECG · neuro · I/O' },
       { o: 'vbg', kind: 'syr', cap: '#3d8bff', name: 'BLOOD GAS', conc: 'venous · lytes', pack: '' },
       { o: 'abg', kind: 'syr', cap: '#ff5d73', name: 'ARTERIAL GAS', conc: 'needs an arterial stab or line', pack: '' },
       { o: 'chem', kind: 'tubes', name: 'CHEMISTRY', conc: 'Na K Cl urea Cr Ca P Mg', pack: '' },
@@ -99,12 +98,12 @@
   })[it.kind] || '';
   const itemPic = it => { const svg = UI.itemSVG(it) || extraSVG(it); return it.o === 'bhb' ? svg.replace('>mg/dL<', '>mmol/L<') : svg; };
   const EXTRA = {
-    en: { io_access: 'Intraosseous (IO) access', o2: 'Oxygen', foley: 'Urinary catheter', ngt: 'Nasogastric tube', aline: 'Arterial line', cvc: 'Central venous line', lp: 'Lumbar puncture', endo: 'Endocrinology consult', labSet: 'DKA order set (standing labs)', parents: 'Talk with the parents', ventSet: 'Ventilator settings', surg: 'Surgical consult', ward: 'Admit to the pediatric ward',
+    en: { io_access: 'Intraosseous (IO) access', o2: 'Oxygen', foley: 'Urinary catheter', ngt: 'Nasogastric tube', aline: 'Arterial line', cvc: 'Central venous line', lp: 'Lumbar puncture', endo: 'Endocrinology consult', parents: 'Talk with the parents', ventSet: 'Ventilator settings', surg: 'Surgical consult', ward: 'Admit to the pediatric ward',
       abg: 'Arterial blood gas', coag: 'Coagulation (PT/INR, PTT)', tns: 'Type and screen / crossmatch', bcx: 'Blood culture', ua: 'Urinalysis + urine culture', lipase: 'Lipase / amylase', lft: 'Liver function tests', cxr: 'Chest X-ray', usabd: 'Abdominal ultrasound',
       dexBolus: 'Dextrose 10% IV bolus', prbc: 'Packed red cells', ffp: 'Fresh frozen plasma', plt: 'Platelets', albumin: 'Albumin 5%', cagluc: 'Calcium gluconate 10% IV', paracet: 'Paracetamol IV', morphine: 'Morphine IV', midaz: 'Midazolam IV', ceftriax: 'Ceftriaxone IV',
       insulinVial: 'Regular insulin (Actrapid)', csf: 'CSF results', dmwab: 'Diabetes autoantibodies', kclConc: 'Concentrated KCl: goes into the IV bag', kclWhere: 'Potassium is added to the maintenance fluids: set it on the infusion pump.',
       modes: { nc: 'Nasal cannula', mask: 'Face mask', nrb: 'Non-rebreather', hfnc: 'High-flow' } },
-    he: { io_access: 'גישה תוך-גרמית (IO)', o2: 'חמצן', foley: 'קטטר בשלפוחית', ngt: 'זונדה (NG)', aline: 'קו עורקי', cvc: 'צנתר ורידי מרכזי', lp: 'ניקור מותני', endo: 'ייעוץ אנדוקרינולוג', labSet: 'סט הוראות DKA (מעבדות קבועות)', parents: 'שיחה עם ההורים', ventSet: 'הגדרות מנשם', surg: 'ייעוץ כירורג', ward: 'אשפוז במחלקת ילדים',
+    he: { io_access: 'גישה תוך-גרמית (IO)', o2: 'חמצן', foley: 'קטטר בשלפוחית', ngt: 'זונדה (NG)', aline: 'קו עורקי', cvc: 'צנתר ורידי מרכזי', lp: 'ניקור מותני', endo: 'ייעוץ אנדוקרינולוג', parents: 'שיחה עם ההורים', ventSet: 'הגדרות מנשם', surg: 'ייעוץ כירורג', ward: 'אשפוז במחלקת ילדים',
       abg: 'גזים עורקיים', coag: 'תפקודי קרישה (PT/INR, PTT)', tns: 'סוג והצלבה', bcx: 'תרבית דם', ua: 'בדיקת שתן + תרבית', lipase: 'ליפאז / עמילאז', lft: 'תפקודי כבד', cxr: 'צילום חזה', usabd: 'US בטן',
       dexBolus: 'בולוס גלוקוז 10% IV', prbc: 'מנות דם (PRBC)', ffp: 'פלזמה (FFP)', plt: 'טסיות', albumin: 'אלבומין 5%', cagluc: 'קלציום גלוקונט 10% IV', paracet: 'פרצטמול IV', morphine: 'מורפין IV', midaz: 'מידזולם IV', ceftriax: 'צפטריאקסון IV',
       insulinVial: 'אינסולין רגולר (Actrapid)', csf: 'תשובת נוזל שדרה', dmwab: 'נוגדנים לסוכרת', kclConc: 'KCl מרוכז: מוסיפים לשקית העירוי', kclWhere: 'אשלגן מוסיפים לנוזלי האחזקה: מגדירים אותו במשאבת העירוי.',
@@ -800,7 +799,7 @@
           ${D.over ? `<div class="mo-dose"><span>Infuse over:</span><input name="over" type="number" step="any" inputmode="decimal" value="${cur.over ?? def.over ?? ''}"><span class="mo-u">min</span></div>` : ''}</div>`;
     const curOrders = [m.inf.main.rate && `inf ${{ NS: 'SODIUM CHLORIDE 0.9%', HALF: 'SODIUM CHLORIDE 0.45%', LR: 'RINGER LACTATE' }[m.inf.main.base]}${m.inf.main.dex ? '+DEXTROSE ' + m.inf.main.dex + '%' : ''}${m.inf.main.kcl ? ' + KCL ' + m.inf.main.kcl + ' mEq/L' : ''} Rate: ${m.inf.main.rate}ml/hr CONTINUOUS`,
       m.inf.insulin && `inf INSULIN REGULAR ${m.inf.insulin} units/kg/h (${r1(m.inf.insulin * w)} units/h) CONTINUOUS`,
-      ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`), ...(S.pendIV || []).map(([k]) => `${oname(k)} · ${L.msgs.waitIV}`), ...Object.entries(S.standing).map(([k, o]) => oname(k).includes(L.every(o.every / 60)) ? oname(k) : `${oname(k)} · ${o.every < 60 ? o.every + ' ' + L.min : L.every(o.every / 60)}`)].filter(Boolean);
+      ...m.inf.boluses.filter(b => b.left > 1).map(b => `inf ${b.fluid === 'LR' ? 'RINGER LACTATE' : 'SODIUM CHLORIDE 0.9%'} ${Math.round(b.left)} ml left ONCE`), ...(S.pendIV || []).filter(([k]) => MED[k]).map(([k]) => `${oname(k)} · ${L.msgs.waitIV}`)].filter(Boolean);
     const nb = S.nbp && S.nbp.v, mon = !!S.flags.mon, lv = !mon && S.lastVit, at = `${hhmm(C.startClock + (mon ? Math.floor(now() / 15) * 15 : lv ? lv.t : 0))}:00 ${(mon ? date : caseDate(lv ? lv.t : 0)).D}`;
     const meas = [[m.temp.toFixed(1), he ? 'חום' : 'Temp'], [mon ? m.HR : lv ? lv.hr : m.hist[0] ? m.hist[0].HR : m.HR, he ? 'דופק' : 'Pulse'], [nb ? `${nb.s} / ${nb.d}` : mon ? `${m.SBP} / ${m.DBP}` : lv ? `${lv.s} / ${lv.d}` : '—', he ? 'לחץ דם' : 'BP'], [mon ? m.SpO2 : lv ? lv.sp : '—', he ? 'סטורציה באויר חדר' : 'SpO₂ room air'], [m.GCS < 9 || m.vent ? '—' : !mon ? 4 : m.pH < 7.2 ? 4 : m.pH < 7.3 ? 2 : 0, he ? 'כאב' : 'Pain']];
     const wtTxt = S.flags.weighed ? m.wt : m.wt0;
@@ -997,12 +996,6 @@
       return;
     }
     if (id === 'kclConc') { msg('sys', EXTRA[LANG].kclWhere); openForm('main'); return; }
-    if (id === 'labSet') {
-      const SET = [['poc', 1], ['vbg', 2], ['chem', 4], ['bhb', 0], ['cbc', 0], ['ua', 0], ['ecg', 0], ['neuro'], ['io']];
-      const md = modal(`<span class="eyebrow">${esc(L.order)} · ${hhmm(C.startClock + now())}</span><h2>${esc(oname('labSet'))}</h2><ul class="setl">${SET.map(([k, f]) => `<li><b>${esc(oname(k))}</b><span>${f === undefined ? "" : f ? esc(L.every(f)) : esc(L.once)}</span></li>`).join('')}</ul><div class="row"><button class="btn primary" data-ok>${esc(L.order)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
-      md.el.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { md.close(); SET.forEach(([k, f]) => { if (f === 0 && S.res.some(r => r.kind === k && now() - r.drawn < 60)) return; order(k, f === undefined ? {} : { freq: f, skipRecent: true }); }); flash(btn); } else if (e.target.closest('[data-x]') || e.target === md.el) md.close(); });
-      return;
-    }
     let preset = {};
     if (id === 'bolusNS' || id === 'bolusLR') { preset.fluid = id === 'bolusNS' ? 'NS' : 'LR'; id = 'bolus'; }
     if (MED[id]) { (S.flags.loc === 'PICU' ? picuForm : medForm)(id, preset, btn); return; }

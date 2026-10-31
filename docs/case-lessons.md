@@ -39,6 +39,8 @@ Each line is a rule; most are already enforced by the shared code in `src/app.js
 - No patient identifiers from photos; placeholders only.
 - Toasts never cover dialogs or the top bar; viewers never open by themselves over the learner's work.
 - Check every new screen in English and at 375 px.
+- No order sets named after the diagnosis (e.g. a "DKA order set"): they give the answer away. The resident orders each lab and its frequency.
+- A screen copied from a real system shows only what that system shows: the medication dialog's Current Orders lists medications and fluids, not labs.
 
 ## Testing
 - `tests/calibrate.js` replays model courses; keep a scripted correct-care run at 100% after every change.
