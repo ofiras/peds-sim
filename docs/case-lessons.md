@@ -39,6 +39,7 @@ Each line is a rule; most are already enforced by the shared code in `src/app.js
 - No patient identifiers from photos; placeholders only.
 - Toasts never cover dialogs or the top bar; viewers never open by themselves over the learner's work.
 - Check every new screen in English and at 375 px.
+- The diagnosis appears only in the debrief. Before that, the home card, briefing and top bar use the case's `cc` (age + presenting complaint), and the tag and badge texts avoid naming it.
 - No order sets named after the diagnosis (e.g. a "DKA order set"): they give the answer away. The resident orders each lab and its frequency.
 - A screen copied from a real system shows only what that system shows: the medication dialog's Current Orders lists medications and fluids, not labs.
 - Order forms start empty at every level: no pre-filled dose, rate, duration, drug choice or ventilator setting, and no dose ranges in the menus. At the guided level a hint appears only once the entered value is outside the usual range (`doseHint`/`fluidHint` in app.js); the arithmetic line (= total mL, per kg) is fine.

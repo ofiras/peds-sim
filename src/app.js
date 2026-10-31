@@ -185,7 +185,7 @@
       <p class="sub">${esc(L.appSub)}</p>
       ${xpBar(progGet().xp)}
       <div class="lvpick"><span class="eyebrow">${esc(L.level)}</span>${['guided', 'indep'].map(k => `<label class="pill ${LEVEL === k ? 'on' : ''}"><input type="radio" name="lv" value="${k}" ${LEVEL === k ? 'checked' : ''}>${esc(L[k])}</label>`).join('')}<small>${esc(L[LEVEL + 'D'])}</small></div>
-      <button class="ccard" data-case><span class="tag">${esc(CT().tag)}</span>${starsHTML(progGet().stars[C.id] || 0)}<b>${esc(CT().title)}</b><span class="muted">${esc(CT().brief)}</span></button>
+      <button class="ccard" data-case><span class="tag">${esc(CT().tag)}</span>${starsHTML(progGet().stars[C.id] || 0)}<b>${esc(CT().cc)}</b><span class="muted">${esc(CT().brief)}</span></button>
       <section class="hist"><h3>${esc(L.hist.title)}</h3>${histHTML()}</section>
       <section class="hist"><h3>${esc(L.g.achT)} <small dir="ltr">${Object.keys(progGet().ach).length}/${ACH.length}</small></h3>${badgesHTML()}</section></div>`;
     $$('input[name=lv]').forEach(r => r.addEventListener('change', () => { LEVEL = r.value; ls('psim-level', LEVEL); home(); }));
@@ -193,7 +193,7 @@
     const hc = $('[data-hclr]'); if (hc) hc.addEventListener('click', () => { const md = modal(`<p>${esc(L.hist.clearQ)}</p><div class="row"><button class="btn primary" data-y>${esc(L.yes)}</button><button class="btn ghost" data-n>${esc(L.no)}</button></div>`); md.el.onclick = e => { if (e.target.closest('[data-y]')) { ls('psim-hist', JSON.stringify(histGet().filter(x => x.c !== C.id))); ls('psim-prog', '{}'); md.close(); home(); } else if (e.target.closest('[data-n]')) md.close(); }; });
   }
   function briefing() {
-    const m = modal(`<h2>${esc(CT().title)}</h2><p>${esc(CT().brief)}</p><p class="muted">${esc(CT().triage)}</p><div class="row"><button class="btn primary" data-go>${esc(L.start)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
+    const m = modal(`<h2>${esc(CT().cc)}</h2><p>${esc(CT().brief)}</p><p class="muted">${esc(CT().triage)}</p><div class="row"><button class="btn primary" data-go>${esc(L.start)}</button><button class="btn ghost" data-x>${esc(L.back)}</button></div>`);
     m.el.addEventListener('click', e => { if (e.target.closest('[data-go]')) { m.close(); startCase(); } else if (e.target.closest('[data-x]')) m.close(); });
   }
 
@@ -551,7 +551,7 @@
     app.innerHTML = `<div class="sim">
     <div class="simbar"><div class="in">
       <button class="iconbtn" data-home aria-label="${esc(L.home)}">${he ? '›' : '‹'}</button>
-      <div class="ttl"><b>${esc(CT().title)}</b><span><i class="lvtag lv${LEVEL === 'guided' ? 1 : 3}">${esc(L[LEVEL])}</i> ${esc(m.age)}${he ? ' שנים' : 'y'} · <span id="ttlWt">${S.flags.weighed ? m.wt : '?'}</span> ${he ? 'ק״ג' : 'kg'} · <span id="loc"></span></span></div>
+      <div class="ttl"><b>${esc(CT().cc)}</b><span><i class="lvtag lv${LEVEL === 'guided' ? 1 : 3}">${esc(L[LEVEL])}</i> ${esc(m.age)}${he ? ' שנים' : 'y'} · <span id="ttlWt">${S.flags.weighed ? m.wt : '?'}</span> ${he ? 'ק״ג' : 'kg'} · <span id="loc"></span></span></div>
       <div class="clock"><small>${esc(L.since)}</small><b id="since">0:00</b></div>
       <div class="clock"><small>${esc(L.clock)}</small><b id="clk"></b></div>
       <button class="clock gasb" id="gasBox" data-gasv hidden><small>${esc(L.gasChip)}</small><b id="gasV">pH</b></button>

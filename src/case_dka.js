@@ -7,8 +7,8 @@ window.CASE_DKA = {
   shiftEnd: 8 * 60,                    // the night shift ends at 08:00: hand over, or stay until he is off the drip
   model: { wt: 32, wt0: 35, age: 10, deficitMl: 3000, glucose: 545, ketoacid: 19.5, naCorr: 137.1, kDeficit: 5, ceAt: 330, ceRiskBase: 0.5, temp: 37.0 },
   en: {
-    title: 'New-onset diabetes in DKA',
-    tag: 'ED → PICU · about 14 h · endocrine emergency',
+    title: 'New-onset diabetes in DKA', cc: 'A 10-year-old with vomiting, belly pain and sleepiness',
+    tag: 'ED · night shift · long case (until 08:00)',
     brief: 'A 10-year-old boy is brought by his parents at 22:00. Two weeks of thirst, passing a lot of urine and wetting the bed again; he has lost weight. Since yesterday he vomits and has belly pain, and this evening he has become sleepy. Last weight at school two months ago: 35 kg.',
     triage: 'Triage: drowsy but answers questions. Deep, fast breathing; fruity smell on his breath. Capillary glucose: 542 mg/dL. Urine dipstick: glucose 4+, ketones 3+.',
     history: 'No known illnesses or medications. No fever, cough or urinary symptoms. An aunt has type 1 diabetes. Last meal: a little bread at noon; he drinks a lot of water and juice.',
@@ -32,8 +32,8 @@ window.CASE_DKA = {
     }
   },
   he: {
-    title: 'סוכרת חדשה בחמצת (DKA)',
-    tag: 'מיון ← טיפול נמרץ · כ-14 שעות · חירום אנדוקריני',
+    title: 'סוכרת חדשה בחמצת (DKA)', cc: 'בן 10 עם הקאות, כאבי בטן וישנוניות',
+    tag: 'מיון · תורנות לילה · מקרה ארוך (עד 08:00)',
     brief: 'ילד בן 10 מובא על ידי הוריו בשעה 22:00. שבועיים של צמא, השתנה מרובה והרטבה חוזרת בלילה; ירד במשקל. מאתמול מקיא וכואבת לו הבטן, והערב נעשה ישנוני. משקל אחרון בבית הספר לפני חודשיים: 35 ק״ג.',
     triage: 'בטריאז׳: ישנוני אך עונה לשאלות. נשימה עמוקה ומהירה, ריח פירותי מהפה. סוכר קפילרי: 542 מ״ג/ד״ל. מקלון שתן: גלוקוז 4+, קטונים 3+.',
     history: 'ללא מחלות או תרופות ידועות. ללא חום, שיעול או תלונות בשתן. לדודה סוכרת סוג 1. ארוחה אחרונה: מעט לחם בצהריים; שותה הרבה מים ומיץ.',
